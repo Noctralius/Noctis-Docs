@@ -7,20 +7,36 @@ description: Структура темы и её компоненты
 
 Каждая тема — самостоятельный модуль внутри `themes/`:
 
-```
-themes/
-├── active.dart         — экспорт текущей темы
-├── contract.dart       — AppTheme интерфейс
-└── void_default/       — реализация
-    ├── colors.dart     — палитра
-    ├── text_styles.dart — типографика
-    ├── void_theme.dart — ThemeData
-    ├── theme.dart      — AppTheme реализация + GoRouter
-    ├── routes.dart     — константы маршрутов
-    ├── providers/      — UI-специфичные провайдеры
-    ├── screens/        — экраны по маршрутам
-    └── widgets/        — переиспользуемые компоненты
-```
+<Files>
+  <Folder name="themes" defaultOpen>
+    <File name="active.dart" />
+    <File name="contract.dart" />
+    <Folder name="void_default" defaultOpen>
+      <File name="colors.dart" />
+      <File name="text_styles.dart" />
+      <File name="void_theme.dart" />
+      <File name="theme.dart" />
+      <File name="routes.dart" />
+      <Folder name="providers">
+        <File name="servers_provider.dart" />
+      </Folder>
+      <Folder name="screens">
+        <Folder name="auth" />
+        <Folder name="home" />
+        <Folder name="settings" />
+        <Folder name="console" />
+        <Folder name="server_detail" />
+        <Folder name="splash" />
+      </Folder>
+      <Folder name="widgets">
+        <File name="glass_panel.dart" />
+        <File name="liquid_background.dart" />
+        <File name="void_title_bar.dart" />
+        <File name="void_notification.dart" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
 
 ## Провайдеры
 

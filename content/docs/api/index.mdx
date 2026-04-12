@@ -9,14 +9,26 @@ description: Архитектура и ключевые компоненты Noc
 
 Код организован по Clean Architecture:
 
-```
-lib/
-├── core/adapter/     — LauncherAdapter + реализации
-├── core/security/    — модуль защиты
-├── core/di/          — Riverpod-провайдеры
-├── domain/entities/  — бизнес-модели (Freezed)
-├── domain/repositories/ — интерфейсы
-├── domain/usecases/  — бизнес-операции
-├── data/             — реализации репозиториев
-└── themes/           — UI-слой
-```
+<Files>
+  <Folder name="lib" defaultOpen>
+    <Folder name="core" defaultOpen>
+      <Folder name="adapter">
+        <File name="launcher_adapter.dart" />
+      </Folder>
+      <Folder name="security" />
+      <Folder name="di">
+        <File name="providers.dart" />
+      </Folder>
+    </Folder>
+    <Folder name="domain" defaultOpen>
+      <Folder name="entities" />
+      <Folder name="repositories" />
+      <Folder name="usecases" />
+    </Folder>
+    <Folder name="data">
+      <Folder name="repositories" />
+      <Folder name="datasources" />
+    </Folder>
+    <Folder name="themes" />
+  </Folder>
+</Files>

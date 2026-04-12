@@ -3,22 +3,33 @@ title: Создание темы
 description: Как написать свою тему для Noctis
 ---
 
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
 # Создание темы
 
-## 1. Создай папку
+<Steps>
+  <Step>
 
-```
-themes/
-└── my_theme/
-    ├── colors.dart
-    ├── text_styles.dart
-    ├── theme.dart
-    ├── routes.dart
-    ├── screens/
-    └── widgets/
-```
+### Создай папку
 
-## 2. Реализуй AppTheme
+<Files>
+  <Folder name="themes" defaultOpen>
+    <Folder name="my_theme" defaultOpen>
+      <File name="colors.dart" />
+      <File name="text_styles.dart" />
+      <File name="theme.dart" />
+      <File name="routes.dart" />
+      <Folder name="screens" />
+      <Folder name="widgets" />
+    </Folder>
+  </Folder>
+</Files>
+
+  </Step>
+
+  <Step>
+
+### Реализуй AppTheme
 
 ```dart
 import '../contract.dart';
@@ -56,7 +67,11 @@ class MyTheme implements AppTheme {
 }
 ```
 
-## 3. Переключи active.dart
+  </Step>
+
+  <Step>
+
+### Переключи active.dart
 
 ```dart
 export 'my_theme/theme.dart' show MyTheme;
@@ -70,7 +85,11 @@ final activeThemeProvider = Provider<AppTheme>((ref) {
 });
 ```
 
-## 4. Экраны
+  </Step>
+
+  <Step>
+
+### Экраны
 
 Каждый экран получает данные через Riverpod-провайдеры из `core/di/`. Адаптер, репозитории, use cases — всё доступно через `ref.watch`.
 
@@ -91,3 +110,6 @@ class MyHomeScreen extends ConsumerWidget {
   }
 }
 ```
+
+  </Step>
+</Steps>

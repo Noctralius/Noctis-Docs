@@ -27,18 +27,25 @@ class VoidColors {
 
 ## Виджеты
 
-### GlassPanel
+<Tabs items={['GlassPanel', 'LiquidBackground', 'VoidTitleBar', 'VoidNotification']}>
+  <Tab value="GlassPanel">
 
 Glassmorphism-карточка с `BackdropFilter`. Параметры: `blur` (интенсивность размытия) и `alpha` (прозрачность).
 
-### LiquidBackground
+  </Tab>
+  <Tab value="LiquidBackground">
 
 Анимированные blob-ы, дрейфующие по экрану. Используется как фон на всех экранах. Рендерится через CustomPainter.
 
-### VoidTitleBar
+  </Tab>
+  <Tab value="VoidTitleBar">
 
 Кастомный тайтлбар для Windows. Кнопки min/max/close через FFI (`SendMessage` к `HWND`).
 
-### VoidNotification
+  </Tab>
+  <Tab value="VoidNotification">
 
 Оверлей-уведомления с уровнями: info, success, warning, error.
+
+  </Tab>
+</Tabs>

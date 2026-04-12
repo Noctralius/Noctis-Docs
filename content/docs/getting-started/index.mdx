@@ -37,3 +37,44 @@ core/       — адаптеры, DI, конфиг, ошибки, security, те
 ```
 
 Зависимости идут только внутрь: `presentation → domain ← data`. Domain не знает ни про Flutter, ни про сеть.
+
+<Files>
+  <Folder name="lib" defaultOpen>
+    <Folder name="core" defaultOpen>
+      <Folder name="adapter">
+        <File name="launcher_adapter.dart" />
+        <Folder name="gravit">
+          <File name="gravit_adapter.dart" />
+        </Folder>
+        <Folder name="custom_rest">
+          <File name="custom_rest_adapter.dart" />
+        </Folder>
+        <Folder name="mock">
+          <File name="mock_adapter.dart" />
+        </Folder>
+      </Folder>
+      <Folder name="security">
+        <File name="process_guard.dart" />
+        <File name="launch_guard.dart" />
+        <File name="file_integrity_service.dart" />
+      </Folder>
+      <Folder name="di">
+        <File name="providers.dart" />
+      </Folder>
+    </Folder>
+    <Folder name="domain">
+      <Folder name="entities" />
+      <Folder name="repositories" />
+      <Folder name="usecases" />
+    </Folder>
+    <Folder name="data">
+      <Folder name="repositories" />
+      <Folder name="datasources" />
+    </Folder>
+    <Folder name="themes">
+      <File name="contract.dart" />
+      <File name="active.dart" />
+      <Folder name="void_default" />
+    </Folder>
+  </Folder>
+</Files>

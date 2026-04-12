@@ -24,6 +24,9 @@ abstract interface class LauncherAdapter {
 }
 ```
 
+<Tabs items={['GravitAdapter', 'CustomRestAdapter', 'MockAdapter']}>
+  <Tab value="GravitAdapter">
+
 ## GravitAdapter
 
 WebSocket-адаптер для GravitLauncher.
@@ -52,6 +55,9 @@ WebSocket-адаптер для GravitLauncher.
 
 Все пути из серверного `hdir` проходят через `PathSanitizer.isValid()`. Это защита от path traversal — сервер не может заставить клиент записать файл за пределы game directory.
 
+  </Tab>
+  <Tab value="CustomRestAdapter">
+
 ## CustomRestAdapter
 
 HTTP-адаптер через Dio.
@@ -63,6 +69,12 @@ HTTP-адаптер через Dio.
 | Файлы | `core/adapter/custom_rest/custom_rest_adapter.dart` |
 | Auth | Bearer token в interceptor, автообновление |
 
+  </Tab>
+  <Tab value="MockAdapter">
+
 ## MockAdapter
 
 Возвращает хардкоженные данные. Для разработки UI без сервера.
+
+  </Tab>
+</Tabs>

@@ -3,6 +3,8 @@ title: Обзор
 description: Модуль безопасности Noctis
 ---
 
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
 # Безопасность
 
 Модуль `core/security/` защищает от модификации игровых файлов, DLL-инжекта и подмены модов.
@@ -21,19 +23,23 @@ description: Модуль безопасности Noctis
 
 ## Поток
 
-```
-syncAssets → post-download hash check
-                    ↓
-              saveManifest (known-good state)
-                    ↓
-         LaunchGuard.check (pre-launch)
-                    ↓ pass
-              Process.start
-                    ↓
-         ProcessGuard + RuntimeWatcher
-                    ↓ violation
-              TerminateProcess
-```
+<Steps>
+  <Step>
+`syncAssets` — скачивание файлов с post-download hash check
+  </Step>
+  <Step>
+`saveManifest` — сохранение known-good state
+  </Step>
+  <Step>
+`LaunchGuard.check` — pre-launch проверка целостности
+  </Step>
+  <Step>
+`Process.start` — запуск игры
+  </Step>
+  <Step>
+`ProcessGuard` + `RuntimeWatcher` — мониторинг во время игры. При нарушении → `TerminateProcess`
+  </Step>
+</Steps>
 
 ## Ограничения
 

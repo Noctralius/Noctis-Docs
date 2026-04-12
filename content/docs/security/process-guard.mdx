@@ -3,6 +3,8 @@ title: ProcessGuard
 description: Защита от DLL-инжекта
 ---
 
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
 # ProcessGuard
 
 Мониторит загруженные модули (DLL) игрового процесса через Windows API. При обнаружении нового модуля после стабилизации — убивает процесс.
@@ -21,23 +23,37 @@ description: Защита от DLL-инжекта
 
 ## Фазы работы
 
-### 1. Baseline (сбор модулей)
+<Steps>
+  <Step>
+
+### Baseline (сбор модулей)
 
 После запуска Java-процесса ProcessGuard каждые 2 секунды снимает snapshot загруженных модулей. JVM динамически подгружает библиотеки при старте (jvm.dll, lwjgl, OpenAL и т.д.).
 
 Когда количество модулей стабилизируется (3 одинаковых подряд snapshot-а) — baseline заморожен.
 
-### 2. Active (мониторинг)
+  </Step>
+
+  <Step>
+
+### Active (мониторинг)
 
 Каждые 2 секунды:
 - Получает текущий список модулей
 - Сравнивает с baseline
 - Проверяет `CheckRemoteDebuggerPresent`
 
-### 3. Violation → Kill
+  </Step>
+
+  <Step>
+
+### Violation → Kill
 
 Любой новый модуль, не входящий в baseline = `DllInjection` violation → `TerminateProcess`.
 Обнаружен дебаггер = `DebuggerAttached` violation → `TerminateProcess`.
+
+  </Step>
+</Steps>
 
 ## Ограничения
 

@@ -10,7 +10,7 @@ export default function Layout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="ru" className={inter.className} suppressHydrationWarning>
       <body className="flex flex-col min-h-screen">
-        <RootProvider search={{ options: { type: 'static', api: '/Noctis-Docs/api/search' } }}>{children}</RootProvider>
+        <RootProvider search={{ options: { type: 'static', api: '/Noctis-Docs/api/search.json' } }}>{children}</RootProvider>
       </body>
     </html>
   );

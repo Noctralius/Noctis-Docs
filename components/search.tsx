@@ -5,7 +5,7 @@ import type { SharedProps } from 'fumadocs-ui/contexts/search';
 import { useDocsSearch } from 'fumadocs-core/search/client';
 import type { SortedResult } from 'fumadocs-core/server';
 import {
-  SearchDialog,
+  SearchDialog as BaseSearchDialog,
   SearchDialogContent,
   SearchDialogFooter,
   SearchDialogHeader,
@@ -70,7 +70,7 @@ export default function SearchDialog(props: SharedProps) {
   });
 
   return (
-    <SearchDialog
+    <BaseSearchDialog
       search={search}
       onSearchChange={setSearch}
       results={query.data ?? []}
@@ -86,6 +86,6 @@ export default function SearchDialog(props: SharedProps) {
         <SearchDialogList />
         <SearchDialogFooter />
       </SearchDialogContent>
-    </SearchDialog>
+    </BaseSearchDialog>
   );
 }

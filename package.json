@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "next build && node --experimental-strip-types scripts/sync-content.ts",
+    "build": "next build",
+    "sync": "node --experimental-strip-types scripts/sync-content.ts",
     "dev": "next dev",
     "start": "next start",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",

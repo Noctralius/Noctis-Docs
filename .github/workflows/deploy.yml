@@ -17,6 +17,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_ORAMA_DATASOURCE_ID: ${{ vars.NEXT_PUBLIC_ORAMA_DATASOURCE_ID }}
+      NEXT_PUBLIC_ORAMA_PROJECT_ID: ${{ vars.NEXT_PUBLIC_ORAMA_PROJECT_ID }}
+      NEXT_PUBLIC_ORAMA_API_KEY: ${{ vars.NEXT_PUBLIC_ORAMA_API_KEY }}
+      ORAMA_PRIVATE_API_KEY: ${{ secrets.ORAMA_PRIVATE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
 

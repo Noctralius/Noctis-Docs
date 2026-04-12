@@ -3,17 +3,35 @@ title: Обзор
 description: Что такое Noctis и зачем он нужен
 ---
 
+import { Gamepad2, RefreshCw, Palette, Shield, Monitor } from 'lucide-react';
+
 # Noctis
 
 Noctis — десктопный лаунчер для Minecraft. Подключается к серверам через адаптеры (Gravit, REST API или мок для разработки), проверяет целостность файлов, скачивает обновления и запускает игру.
 
 ## Что умеет
 
-- **Мультибэкенд** — работает с GravitLauncher (WebSocket), кастомным REST API или моком. Переключается одной настройкой.
-- **Автообновление клиента** — синхронизация файлов с сервера, SHA-1 проверка после скачивания.
-- **Система тем** — UI полностью заменяемый. Из коробки идёт Void Default с glassmorphism и тёмной палитрой.
-- **Защита от читов** — pre-launch проверка файлов, детект DLL-инжекта через мониторинг модулей процесса, наблюдение за файлами во время игры.
-- **Мультиплатформенность** — Windows (основная), Linux, macOS.
+<Cards>
+<Card title="Мультибэкенд" icon={<Gamepad2 />}>
+Работает с GravitLauncher (WebSocket), кастомным REST API или моком. Переключается одной настройкой.
+</Card>
+<Card title="Автообновление" icon={<RefreshCw />}>
+Синхронизация файлов с сервера, SHA-1 проверка после скачивания.
+</Card>
+<Card title="Система тем" icon={<Palette />} href="/docs/themes">
+UI полностью заменяемый. Из коробки — Void Default с glassmorphism.
+</Card>
+<Card title="Защита от читов" icon={<Shield />} href="/docs/security">
+Pre-launch проверка файлов, детект DLL-инжекта, мониторинг файлов во время игры.
+</Card>
+<Card title="Мультиплатформенность" icon={<Monitor />}>
+Windows (основная), Linux, macOS.
+</Card>
+</Cards>
+
+<Callout title="Для разработчиков">
+Если ты хочешь разрабатывать под Noctis — начни с раздела [API](/docs/api), а для кастомизации UI — с [Тем](/docs/themes).
+</Callout>
 
 ## Стек
 

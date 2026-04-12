@@ -34,3 +34,7 @@ await _launchGuard.check(profile.gameDir, profile.uuid);
 final args = _repository.buildLaunchArgs(profile, token);
 await _repository.launch(...);
 ```
+
+<Callout type="idea" title="Совет">
+В режиме разработки можно переключить LaunchGuard в `disabled` — это пропустит проверку и ускорит итерации.
+</Callout>

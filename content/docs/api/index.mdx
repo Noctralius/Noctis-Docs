@@ -9,6 +9,25 @@ description: Архитектура и ключевые компоненты Noc
 
 Код организован по Clean Architecture:
 
+import { Plug, Box, Database, Zap } from 'lucide-react';
+
+<Cards>
+<Card title="Адаптеры" icon={<Plug />} href="/docs/api/adapters">
+LauncherAdapter и три реализации: Gravit, REST, Mock.
+</Card>
+<Card title="Сущности" icon={<Box />} href="/docs/api/entities">
+Freezed-модели: Server, Profile, AuthToken и другие.
+</Card>
+<Card title="Репозитории" icon={<Database />} href="/docs/api/repositories">
+Интерфейсы и реализации для данных и безопасности.
+</Card>
+<Card title="Use Cases" icon={<Zap />} href="/docs/api/usecases">
+Бизнес-операции: авторизация, запуск, проверка.
+</Card>
+</Cards>
+
+## Структура проекта
+
 <Files>
   <Folder name="lib" defaultOpen>
     <Folder name="core" defaultOpen>

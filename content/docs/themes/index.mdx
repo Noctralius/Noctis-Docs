@@ -9,6 +9,20 @@ Noctis отделяет UI от бизнес-логики. Вся презент
 
 Текущая тема задаётся в `themes/active.dart`. Из коробки идёт Void Default — тёмная тема с glassmorphism-эффектами.
 
+import { LayoutTemplate, Brush, Plus } from 'lucide-react';
+
+<Cards>
+<Card title="Архитектура" icon={<LayoutTemplate />} href="/docs/themes/architecture">
+Структура темы, провайдеры, экраны.
+</Card>
+<Card title="Void Default" icon={<Brush />} href="/docs/themes/void-default">
+Встроенная тёмная тема с glassmorphism.
+</Card>
+<Card title="Создание темы" icon={<Plus />} href="/docs/themes/creating-theme">
+Пошаговое руководство по созданию своей темы.
+</Card>
+</Cards>
+
 ## Контракт
 
 Каждая тема реализует `AppTheme`:

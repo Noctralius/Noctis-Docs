@@ -9,6 +9,23 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 Модуль `core/security/` защищает от модификации игровых файлов, DLL-инжекта и подмены модов.
 
+import { FileCheck, Lock, Eye, Activity } from 'lucide-react';
+
+<Cards>
+<Card title="Целостность файлов" icon={<FileCheck />} href="/docs/security/file-integrity">
+SHA-1 верификация, ManifestStore, ExtraFileScanner.
+</Card>
+<Card title="LaunchGuard" icon={<Lock />} href="/docs/security/launch-guard">
+Pre-launch проверка .jar/.zip файлов перед запуском.
+</Card>
+<Card title="ProcessGuard" icon={<Eye />} href="/docs/security/process-guard">
+Детект DLL-инжекта через мониторинг модулей процесса.
+</Card>
+<Card title="RuntimeWatcher" icon={<Activity />} href="/docs/security/runtime-watcher">
+Мониторинг файловой системы game directory во время игры.
+</Card>
+</Cards>
+
 ## Компоненты
 
 | Компонент | Что делает |
@@ -24,23 +41,27 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 ## Поток
 
 <Steps>
-  <Step>
+<Step>
 `syncAssets` — скачивание файлов с post-download hash check
-  </Step>
-  <Step>
+</Step>
+<Step>
 `saveManifest` — сохранение known-good state
-  </Step>
-  <Step>
+</Step>
+<Step>
 `LaunchGuard.check` — pre-launch проверка целостности
-  </Step>
-  <Step>
+</Step>
+<Step>
 `Process.start` — запуск игры
-  </Step>
-  <Step>
+</Step>
+<Step>
 `ProcessGuard` + `RuntimeWatcher` — мониторинг во время игры. При нарушении → `TerminateProcess`
-  </Step>
+</Step>
 </Steps>
 
 ## Ограничения
 
 ProcessGuard детектит стандартный DLL injection (CreateRemoteThread + LoadLibrary) и debugger attachment. Не детектит manual mapping и kernel-level читы — для этого нужен kernel driver (как EAC/BattlEye).
+
+<Callout type="warn" title="Ограничения">
+ProcessGuard детектит ~90% инжекторов. Manual mapping и kernel-level читы требуют kernel driver (EAC/BattlEye).
+</Callout>

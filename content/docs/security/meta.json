@@ -1,5 +1,7 @@
 {
   "root": true,
   "title": "Безопасность",
+  "description": "Защита файлов, процессов и модов",
+  "icon": "Shield",
   "pages": ["index", "file-integrity", "launch-guard", "process-guard", "runtime-watcher"]
 }

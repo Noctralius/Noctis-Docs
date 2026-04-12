@@ -8,7 +8,7 @@ description: Доменные модели Noctis
 Все модели в `domain/entities/`. Сгенерированы через Freezed (иммутабельные, с copyWith и JSON-сериализацией).
 
 <Tabs items={['Server', 'Profile', 'AuthToken', 'SecurityViolation', 'IntegrityReport']}>
-  <Tab value="Server">
+<Tab value="Server">
 
 ## Server
 
@@ -25,8 +25,8 @@ class Server with _$Server {
 }
 ```
 
-  </Tab>
-  <Tab value="Profile">
+</Tab>
+<Tab value="Profile">
 
 ## Profile
 
@@ -53,8 +53,8 @@ class Profile with _$Profile {
 `updateExclusions` — пути, которые не перезаписываются при sync (конфиги игрока).
 `updatePaths` / `updateVerifyPaths` — если заданы, проверяются только файлы по этим префиксам.
 
-  </Tab>
-  <Tab value="AuthToken">
+</Tab>
+<Tab value="AuthToken">
 
 ## AuthToken / UserAccount
 
@@ -77,8 +77,8 @@ class AuthToken with _$AuthToken {
 }
 ```
 
-  </Tab>
-  <Tab value="SecurityViolation">
+</Tab>
+<Tab value="SecurityViolation">
 
 ## SecurityViolation
 
@@ -97,8 +97,8 @@ final class DebuggerAttached extends SecurityViolation { ... }
 final class RuntimeFileModification extends SecurityViolation { ... }
 ```
 
-  </Tab>
-  <Tab value="IntegrityReport">
+</Tab>
+<Tab value="IntegrityReport">
 
 ## IntegrityReport
 
@@ -116,5 +116,5 @@ final class IntegrityReport {
 }
 ```
 
-  </Tab>
+</Tab>
 </Tabs>

@@ -14,8 +14,12 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 - Git
 - Для Windows: Visual Studio с C++ workload (для Flutter desktop)
 
+<Callout type="warn" title="Windows">
+На Windows нужна Visual Studio с C++ workload — Flutter использует MSVC для компиляции нативного кода.
+</Callout>
+
 <Steps>
-  <Step>
+<Step>
 
 ### Клонирование
 
@@ -24,9 +28,9 @@ git clone https://github.com/Noctralius/Noctis.git
 cd Noctis
 ```
 
-  </Step>
+</Step>
 
-  <Step>
+<Step>
 
 ### Зависимости
 
@@ -34,9 +38,9 @@ cd Noctis
 flutter pub get
 ```
 
-  </Step>
+</Step>
 
-  <Step>
+<Step>
 
 ### Кодогенерация
 
@@ -46,51 +50,51 @@ flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-  </Step>
+</Step>
 
-  <Step>
+<Step>
 
 ### Запуск
 
 <Tabs items={['Windows', 'Linux', 'macOS']}>
-  <Tab value="Windows">
+<Tab value="Windows">
 ```bash
 flutter run -d windows
 ```
-  </Tab>
-  <Tab value="Linux">
+</Tab>
+<Tab value="Linux">
 ```bash
 flutter run -d linux
 ```
-  </Tab>
-  <Tab value="macOS">
+</Tab>
+<Tab value="macOS">
 ```bash
 flutter run -d macos
 ```
-  </Tab>
+</Tab>
 </Tabs>
 
-  </Step>
+</Step>
 </Steps>
 
 ## Сборка релиза
 
 <Tabs items={['Windows', 'Linux', 'macOS']}>
-  <Tab value="Windows">
+<Tab value="Windows">
 ```bash
 flutter build windows --release
 ```
 Бинарник: `build/windows/x64/runner/Release/`
-  </Tab>
-  <Tab value="Linux">
+</Tab>
+<Tab value="Linux">
 ```bash
 flutter build linux --release
 ```
 Бинарник: `build/linux/x64/release/bundle/`
-  </Tab>
-  <Tab value="macOS">
+</Tab>
+<Tab value="macOS">
 ```bash
 flutter build macos --release
 ```
-  </Tab>
+</Tab>
 </Tabs>

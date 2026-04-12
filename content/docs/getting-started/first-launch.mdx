@@ -24,19 +24,23 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 ## Синхронизация и запуск
 
 <Steps>
-  <Step>
+<Step>
 Выбираешь профиль на странице сервера
-  </Step>
-  <Step>
+</Step>
+<Step>
 Нажимаешь «Играть» — запускается `syncAssets`, скачиваются недостающие файлы, проверяются хеши
-  </Step>
-  <Step>
+</Step>
+<Step>
 Pre-launch проверка целостности (LaunchGuard) — если файлы повреждены, запуск блокируется
-  </Step>
-  <Step>
+</Step>
+<Step>
 Формируются аргументы запуска (JVM args, classpath, game args) и стартует Java-процесс
-  </Step>
-  <Step>
+</Step>
+<Step>
 Включается мониторинг: ProcessGuard следит за DLL-инжектом, RuntimeWatcher — за файлами. Консольный вывод доступен на экране Console.
-  </Step>
+</Step>
 </Steps>
+
+<Callout title="Защита">
+Подробнее о том, как работает защита от читов — в разделе [Безопасность](/docs/security).
+</Callout>

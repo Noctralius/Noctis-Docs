@@ -20,7 +20,7 @@ final adapterConfigProvider = StateProvider<AdapterConfig>((ref) {
 Замени на нужный тип:
 
 <Tabs items={['GravitLauncher', 'Custom REST', 'Mock']}>
-  <Tab value="GravitLauncher">
+<Tab value="GravitLauncher">
 
 ```dart
 const GravitConfig(
@@ -32,8 +32,8 @@ const GravitConfig(
 
 Протокол WebSocket. Подробности в `docs/gravit_protocol.md`.
 
-  </Tab>
-  <Tab value="Custom REST">
+</Tab>
+<Tab value="Custom REST">
 
 ```dart
 const CustomRestConfig(
@@ -43,8 +43,8 @@ const CustomRestConfig(
 
 HTTP-эндпоинты через Dio. Токены обновляются автоматически через interceptor.
 
-  </Tab>
-  <Tab value="Mock">
+</Tab>
+<Tab value="Mock">
 
 ```dart
 const MockConfig()
@@ -52,8 +52,12 @@ const MockConfig()
 
 Хардкоженные данные, никуда не подключается. Удобно для вёрстки и тестов UI.
 
-  </Tab>
+</Tab>
 </Tabs>
+
+<Callout type="idea" title="Для разработки">
+Используй MockConfig для работы над UI — не нужен реальный сервер, данные захардкожены.
+</Callout>
 
 ## Java
 

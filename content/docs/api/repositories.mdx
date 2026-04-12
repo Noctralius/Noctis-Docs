@@ -1,0 +1,51 @@
+---
+title: Репозитории
+description: Интерфейсы и реализации репозиториев
+---
+
+# Репозитории
+
+Репозитории — прослойка между use cases и данными. Интерфейсы в `domain/repositories/`, реализации в `data/repositories/`.
+
+## AuthRepository
+
+```dart
+abstract interface class AuthRepository {
+  Future<AuthToken> login(String login, String password);
+  Future<void> logout();
+  Future<AuthToken?> getStoredToken();
+  Future<void> saveToken(AuthToken token);
+  Future<UserAccount?> getStoredAccount();
+  Future<void> saveAccount(UserAccount account);
+}
+```
+
+`AuthRepositoryImpl` комбинирует `LauncherAdapter` (для сетевых запросов) и `LocalStorage` (для персистентности токенов).
+
+## LaunchRepository
+
+```dart
+abstract interface class LaunchRepository {
+  LaunchArgs buildLaunchArgs(Profile profile, AuthToken token);
+  Future<void> launch({required LaunchArgs args, required int maxRamMb, required int minRamMb});
+  Stream<String> get logStream;
+  bool get isRunning;
+  Future<void> kill();
+}
+```
+
+`LaunchRepositoryImpl` делегирует `buildLaunchArgs` адаптеру, а `launch` — `GameProcessManager`.
+
+## SecurityRepository
+
+```dart
+abstract interface class SecurityRepository {
+  Future<IntegrityReport> verifyIntegrity(Profile profile);
+  Future<IntegrityReport> scanExtraFiles(Profile profile);
+  Future<IntegrityReport> fullCheck(Profile profile);
+  Future<void> saveManifest(Profile profile, Map<String, String> fileHashes);
+  Future<Map<String, String>?> loadManifest(Profile profile);
+}
+```
+
+`SecurityRepositoryImpl` координирует `FileIntegrityService`, `ManifestStore` и `ExtraFileScanner`.

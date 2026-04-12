@@ -1,0 +1,68 @@
+---
+title: Адаптеры
+description: LauncherAdapter и его реализации
+---
+
+# Адаптеры
+
+`LauncherAdapter` — центральный интерфейс для общения с бэкендом. Все операции с сервером проходят через него.
+
+## Интерфейс
+
+```dart
+abstract interface class LauncherAdapter {
+  Future<AuthToken> login(String login, String password);
+  Future<void> logout();
+  Future<List<Server>> fetchServers();
+  Future<List<Profile>> fetchProfiles();
+  Future<Profile> fetchProfile(String id);
+  Stream<DownloadProgress> syncAssets(Profile profile, {Set<String> enabledMods});
+  Future<List<String>> verifyIntegrity(Profile profile);
+  LaunchArgs buildLaunchArgs(Profile profile, AuthToken token);
+  Future<void> connect();
+  Future<void> disconnect();
+}
+```
+
+## GravitAdapter
+
+WebSocket-адаптер для GravitLauncher.
+
+| Аспект | Детали |
+|--------|--------|
+| Протокол | WebSocket (JSON-сообщения) |
+| Пакет | `web_socket_channel` |
+| Файлы | `core/adapter/gravit/gravit_adapter.dart`, `gravit_ws_client.dart` |
+| Sync | SHA-1 хеширование, батчевое скачивание (4 потока), post-download верификация |
+| Моды | Optional mods с enable/disable, зависимости между модами |
+
+### Особенности sync
+
+`syncAssets` запрашивает у сервера `hdir` (иерархический манифест файлов). Каждый файл имеет `digest` (SHA-1 base64), `size`, опциональный `url` и флаги.
+
+Файлы классифицируются:
+- **excluded** — скачиваются только если отсутствуют, хеш не проверяется (конфиги игрока)
+- **flagged** — удаляются с диска (серверная команда на удаление)
+- **optional mods** — скачиваются/удаляются в зависимости от выбора пользователя
+- **обычные** — проверяются по хешу, скачиваются если не совпадает
+
+После скачивания каждый файл проверяется повторно (post-download hash check). Если хеш не совпал — файл удаляется и помечается как failed.
+
+### Path Sanitizer
+
+Все пути из серверного `hdir` проходят через `PathSanitizer.isValid()`. Это защита от path traversal — сервер не может заставить клиент записать файл за пределы game directory.
+
+## CustomRestAdapter
+
+HTTP-адаптер через Dio.
+
+| Аспект | Детали |
+|--------|--------|
+| Протокол | REST (JSON) |
+| Пакет | `dio` |
+| Файлы | `core/adapter/custom_rest/custom_rest_adapter.dart` |
+| Auth | Bearer token в interceptor, автообновление |
+
+## MockAdapter
+
+Возвращает хардкоженные данные. Для разработки UI без сервера.

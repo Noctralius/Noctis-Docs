@@ -1,0 +1,102 @@
+---
+title: Сущности
+description: Доменные модели Noctis
+---
+
+# Сущности
+
+Все модели в `domain/entities/`. Сгенерированы через Freezed (иммутабельные, с copyWith и JSON-сериализацией).
+
+## Server
+
+```dart
+@freezed
+class Server with _$Server {
+  const factory Server({
+    required String name,
+    required String uuid,
+    required int onlineCount,
+    required int maxOnline,
+    required List<String> tags,
+  }) = _Server;
+}
+```
+
+## Profile
+
+```dart
+@freezed
+class Profile with _$Profile {
+  const factory Profile({
+    required String uuid,
+    required String title,
+    required String version,
+    required String gameDir,
+    required String assetDir,
+    required String mainClass,
+    required List<String> jvmArgs,
+    required List<String> gameArgs,
+    required List<String> libraries,
+    @Default([]) List<String> updateExclusions,
+    @Default([]) List<String> updatePaths,
+    @Default([]) List<String> updateVerifyPaths,
+  }) = _Profile;
+}
+```
+
+`updateExclusions` — пути, которые не перезаписываются при sync (конфиги игрока).
+`updatePaths` / `updateVerifyPaths` — если заданы, проверяются только файлы по этим префиксам.
+
+## AuthToken / UserAccount
+
+```dart
+@freezed
+class UserAccount with _$UserAccount {
+  const factory UserAccount({
+    required String username,
+    required String uuid,
+  }) = _UserAccount;
+}
+
+@freezed
+class AuthToken with _$AuthToken {
+  const factory AuthToken({
+    required String accessToken,
+    required String refreshToken,
+    required UserAccount account,
+  }) = _AuthToken;
+}
+```
+
+## SecurityViolation
+
+Sealed class без Freezed (нативные sealed classes Dart 3):
+
+```dart
+sealed class SecurityViolation {
+  final DateTime detectedAt;
+}
+
+final class HashMismatch extends SecurityViolation { ... }
+final class ExtraFile extends SecurityViolation { ... }
+final class PathTraversalAttempt extends SecurityViolation { ... }
+final class DllInjection extends SecurityViolation { ... }
+final class DebuggerAttached extends SecurityViolation { ... }
+final class RuntimeFileModification extends SecurityViolation { ... }
+```
+
+## IntegrityReport
+
+```dart
+final class IntegrityReport {
+  final DateTime checkedAt;
+  final int totalFiles;
+  final int verifiedFiles;
+  final List<SecurityViolation> violations;
+
+  IntegrityStatus get status => ...;
+  // clean — нет нарушений
+  // warning — есть лишние файлы
+  // compromised — изменённые хеши, DLL-инжект, дебаггер
+}
+```

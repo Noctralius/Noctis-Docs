@@ -1,0 +1,28 @@
+---
+title: Система тем
+description: Как работают темы в Noctis
+---
+
+# Темы
+
+Noctis отделяет UI от бизнес-логики. Вся презентация живёт в `lib/themes/`, а переключение между темами — замена одного экспорта.
+
+Текущая тема задаётся в `themes/active.dart`. Из коробки идёт Void Default — тёмная тема с glassmorphism-эффектами.
+
+## Контракт
+
+Каждая тема реализует `AppTheme`:
+
+```dart
+abstract class AppTheme {
+  String get splashRoute;
+  String get authRoute;
+  String get homeRoute;
+  ThemeData get themeData;
+  List<NavigationDestination> get navigationItems;
+  List<RouteBase> buildRoutes();
+  Widget wrapShell(Widget child);
+}
+```
+
+Тема полностью определяет роуты, навигацию и внешний вид. Core-слой ничего не знает о том, как выглядит приложение.

@@ -1,0 +1,44 @@
+---
+title: Void Default
+description: Встроенная тёмная тема
+---
+
+# Void Default
+
+Тёмная тема с glassmorphism-эффектами, анимированным фоном и кастомной палитрой.
+
+## Палитра
+
+```dart
+class VoidColors {
+  static const background = Color(0xFF0A0E1A);
+  static const surface = Color(0xFF121729);
+  static const surfaceLight = Color(0xFF1A2035);
+  static const primary = Color(0xFF2196F3);
+  static const accent = Color(0xFF00BFA5);
+  static const textPrimary = Color(0xFFE0E6F0);
+  static const textSecondary = Color(0xFF8892A8);
+}
+```
+
+## Типографика
+
+Шрифт — Inter. Display-заголовки — ChakraPetch. Стили в `VoidTextStyles`.
+
+## Виджеты
+
+### GlassPanel
+
+Glassmorphism-карточка с `BackdropFilter`. Параметры: `blur` (интенсивность размытия) и `alpha` (прозрачность).
+
+### LiquidBackground
+
+Анимированные blob-ы, дрейфующие по экрану. Используется как фон на всех экранах. Рендерится через CustomPainter.
+
+### VoidTitleBar
+
+Кастомный тайтлбар для Windows. Кнопки min/max/close через FFI (`SendMessage` к `HWND`).
+
+### VoidNotification
+
+Оверлей-уведомления с уровнями: info, success, warning, error.

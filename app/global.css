@@ -10,3 +10,17 @@ html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
 }
+
+.dark {
+  --color-fd-background: hsl(228, 33%, 5%);
+  --color-fd-foreground: hsl(210, 20%, 92%);
+  --color-fd-primary: hsl(207, 90%, 54%);
+  --color-fd-primary-foreground: hsl(0, 0%, 100%);
+  --color-fd-muted: hsl(228, 20%, 12%);
+  --color-fd-muted-foreground: hsla(210, 15%, 70%, 0.8);
+  --color-fd-card: hsl(228, 22%, 8%);
+  --color-fd-card-foreground: hsl(210, 20%, 95%);
+  --color-fd-border: hsla(210, 20%, 30%, 25%);
+  --color-fd-accent: hsla(207, 50%, 40%, 30%);
+  --color-fd-accent-foreground: hsl(210, 20%, 92%);
+}

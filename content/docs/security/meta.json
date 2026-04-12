@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "title": "Безопасность",
+  "pages": ["index", "file-integrity", "launch-guard", "process-guard", "runtime-watcher"]
+}

@@ -1,0 +1,40 @@
+---
+title: Обзор
+description: Модуль безопасности Noctis
+---
+
+# Безопасность
+
+Модуль `core/security/` защищает от модификации игровых файлов, DLL-инжекта и подмены модов.
+
+## Компоненты
+
+| Компонент | Что делает |
+|-----------|-----------|
+| `PathSanitizer` | Блокирует path traversal из серверных данных |
+| `FileIntegrityService` | SHA-1 верификация файлов с кешированием |
+| `ManifestStore` | Хранение known-good state (хеши после успешного sync) |
+| `ExtraFileScanner` | Поиск файлов, которых нет в манифесте |
+| `LaunchGuard` | Проверка целостности перед запуском |
+| `ProcessGuard` | Детект DLL-инжекта и дебаггера во время игры |
+| `RuntimeWatcher` | Мониторинг файловой системы game directory |
+
+## Поток
+
+```
+syncAssets → post-download hash check
+                    ↓
+              saveManifest (known-good state)
+                    ↓
+         LaunchGuard.check (pre-launch)
+                    ↓ pass
+              Process.start
+                    ↓
+         ProcessGuard + RuntimeWatcher
+                    ↓ violation
+              TerminateProcess
+```
+
+## Ограничения
+
+ProcessGuard детектит стандартный DLL injection (CreateRemoteThread + LoadLibrary) и debugger attachment. Не детектит manual mapping и kernel-level читы — для этого нужен kernel driver (как EAC/BattlEye).

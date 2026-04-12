@@ -1,0 +1,59 @@
+---
+title: Целостность файлов
+description: SHA-1 верификация и ManifestStore
+---
+
+# Целостность файлов
+
+## FileIntegrityService
+
+Ядро проверки. Считает SHA-1 файлов в streaming-режиме (не грузит в память целиком).
+
+```dart
+final service = FileIntegrityService();
+
+// Проверить один файл
+final valid = await service.verifyFile('/path/to/file.jar', 'base64sha1hash');
+
+// Получить хеш
+final hash = await service.getFileHash('/path/to/file.jar');
+
+// Пакетная проверка
+final results = await service.verifyBatch({
+  'mods/mod1.jar': 'hash1...',
+  'mods/mod2.jar': 'hash2...',
+});
+```
+
+Кеш по `(path, size, mtime)` — если файл не менялся, хеш не пересчитывается.
+
+## ManifestStore
+
+Хранит манифест (map файл → хеш) для каждого профиля. JSON-файлы в app data directory.
+
+```dart
+final store = ManifestStore();
+
+// Сохранить после успешного sync
+await store.save(profile.uuid, {'mods/core.jar': 'abc123...', ...});
+
+// Загрузить для проверки
+final manifest = await store.load(profile.uuid);
+```
+
+## ExtraFileScanner
+
+Сравнивает файлы на диске с манифестом. Всё, чего нет в манифесте — подозрительно.
+
+Whitelist (игнорируются): `logs/`, `saves/`, `screenshots/`, `crash-reports/`, `config/`, `resourcepacks/`, `.log`, `.txt`, `.cfg`, `.properties`, `options.txt`.
+
+## PathSanitizer
+
+Защита от path traversal. Вызывается в `_flattenHdir` GravitAdapter при обработке серверного манифеста.
+
+```dart
+PathSanitizer.sanitize('/game/dir', '../../etc/passwd');  // null (заблокировано)
+PathSanitizer.sanitize('/game/dir', 'mods/cool.jar');     // '/game/dir/mods/cool.jar'
+```
+
+Блокирует: `..`, null bytes (`\x00`), абсолютные пути.

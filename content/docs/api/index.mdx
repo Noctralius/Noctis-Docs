@@ -1,0 +1,22 @@
+---
+title: Обзор API
+description: Архитектура и ключевые компоненты Noctis
+---
+
+# API Reference
+
+Внутренний API Noctis. Здесь описаны адаптеры, сущности, репозитории и use cases.
+
+Код организован по Clean Architecture:
+
+```
+lib/
+├── core/adapter/     — LauncherAdapter + реализации
+├── core/security/    — модуль защиты
+├── core/di/          — Riverpod-провайдеры
+├── domain/entities/  — бизнес-модели (Freezed)
+├── domain/repositories/ — интерфейсы
+├── domain/usecases/  — бизнес-операции
+├── data/             — реализации репозиториев
+└── themes/           — UI-слой
+```

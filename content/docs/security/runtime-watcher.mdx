@@ -1,0 +1,34 @@
+---
+title: RuntimeWatcher
+description: Мониторинг файлов во время игры
+---
+
+# RuntimeWatcher
+
+Следит за файловой системой game directory пока игра запущена. Использует `Directory.watch(recursive: true)`.
+
+## Отслеживаемые расширения
+
+```
+.dll, .so, .dylib, .jar, .class, .jnilib
+```
+
+Создание или изменение файла с таким расширением — `RuntimeFileModification` violation.
+
+## Интеграция
+
+`RuntimeWatcher` стартует вместе с игровым процессом в `GameProcessManager`:
+
+```dart
+processGuard?.start(_process!.pid);
+runtimeWatcher?.start(args.workingDirectory);
+```
+
+И останавливается при завершении:
+
+```dart
+processGuard?.stop();
+runtimeWatcher?.stop();
+```
+
+Нарушения доступны через `violations` stream на обоих компонентах.

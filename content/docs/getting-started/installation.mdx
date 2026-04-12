@@ -1,0 +1,53 @@
+---
+title: Установка
+description: Как собрать и запустить Noctis
+---
+
+# Установка
+
+## Требования
+
+- Flutter SDK 3.41+
+- Dart SDK 3.11+
+- Git
+- Для Windows: Visual Studio с C++ workload (для Flutter desktop)
+
+## Клонирование
+
+```bash
+git clone https://github.com/Noctralius/Noctis.git
+cd Noctis
+```
+
+## Зависимости
+
+```bash
+flutter pub get
+```
+
+## Кодогенерация
+
+Модели используют Freezed, поэтому после клонирования нужно запустить build_runner:
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+## Запуск
+
+```bash
+flutter run -d windows
+```
+
+Для Linux:
+```bash
+flutter run -d linux
+```
+
+## Сборка релиза
+
+```bash
+flutter build windows --release
+```
+
+Собранный бинарник будет в `build/windows/x64/runner/Release/`.

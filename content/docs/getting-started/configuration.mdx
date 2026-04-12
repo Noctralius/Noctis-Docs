@@ -1,0 +1,58 @@
+---
+title: Конфигурация
+description: Настройка адаптера и подключения к серверу
+---
+
+# Конфигурация
+
+Noctis подключается к серверу через адаптер. Тип адаптера задаётся в `AdapterConfig`.
+
+## Выбор адаптера
+
+В `lib/core/di/providers.dart` есть `adapterConfigProvider`:
+
+```dart
+final adapterConfigProvider = StateProvider<AdapterConfig>((ref) {
+  return const GravitConfig(host: 'localhost', port: 9274);
+});
+```
+
+Замени на нужный тип:
+
+### GravitLauncher
+
+```dart
+const GravitConfig(
+  host: 'mc.example.com',
+  port: 9274,
+  useTls: false,
+)
+```
+
+Протокол WebSocket. Подробности в `docs/gravit_protocol.md`.
+
+### Custom REST API
+
+```dart
+const CustomRestConfig(
+  baseUrl: 'https://api.example.com',
+)
+```
+
+HTTP-эндпоинты через Dio. Токены обновляются автоматически через interceptor.
+
+### Мок (для разработки)
+
+```dart
+const MockConfig()
+```
+
+Хардкоженные данные, никуда не подключается. Удобно для вёрстки и тестов UI.
+
+## Java
+
+Путь к Java настраивается в экране Settings внутри лаунчера. По умолчанию используется `java` из PATH. Для Minecraft нужна Java 17+.
+
+## Память
+
+RAM для игры тоже задаётся в Settings. Дефолт: min 512MB, max 2048MB.

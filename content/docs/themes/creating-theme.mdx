@@ -1,0 +1,93 @@
+---
+title: Создание темы
+description: Как написать свою тему для Noctis
+---
+
+# Создание темы
+
+## 1. Создай папку
+
+```
+themes/
+└── my_theme/
+    ├── colors.dart
+    ├── text_styles.dart
+    ├── theme.dart
+    ├── routes.dart
+    ├── screens/
+    └── widgets/
+```
+
+## 2. Реализуй AppTheme
+
+```dart
+import '../contract.dart';
+
+class MyTheme implements AppTheme {
+  @override
+  String get splashRoute => '/';
+
+  @override
+  String get authRoute => '/auth';
+
+  @override
+  String get homeRoute => '/home';
+
+  @override
+  ThemeData get themeData => ThemeData(
+    brightness: Brightness.dark,
+    colorScheme: ColorScheme.dark(
+      primary: Colors.purple,
+      surface: const Color(0xFF1E1E2E),
+    ),
+  );
+
+  @override
+  List<RouteBase> buildRoutes() {
+    return [
+      GoRoute(path: '/', builder: (_, __) => const MySplashScreen()),
+      GoRoute(path: '/auth', builder: (_, __) => const MyAuthScreen()),
+      GoRoute(path: '/home', builder: (_, __) => const MyHomeScreen()),
+    ];
+  }
+
+  @override
+  Widget wrapShell(Widget child) => child;
+}
+```
+
+## 3. Переключи active.dart
+
+```dart
+export 'my_theme/theme.dart' show MyTheme;
+```
+
+И обнови `activeThemeProvider` в `core/di/providers.dart`:
+
+```dart
+final activeThemeProvider = Provider<AppTheme>((ref) {
+  return MyTheme();
+});
+```
+
+## 4. Экраны
+
+Каждый экран получает данные через Riverpod-провайдеры из `core/di/`. Адаптер, репозитории, use cases — всё доступно через `ref.watch`.
+
+Минимальный экран:
+
+```dart
+class MyHomeScreen extends ConsumerWidget {
+  const MyHomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final servers = ref.watch(serversProvider);
+    return servers.when(
+      data: (list) => ListView(...),
+      loading: () => const CircularProgressIndicator(),
+      error: (e, _) => Text('Error: $e'),
+    );
+  }
+}
+```

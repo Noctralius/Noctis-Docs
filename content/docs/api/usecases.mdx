@@ -1,0 +1,64 @@
+---
+title: Use Cases
+description: Бизнес-операции
+---
+
+# Use Cases
+
+Каждый use case — один класс с методом `call()`. Принимает зависимости через конструктор, выполняет одну операцию.
+
+## Auth
+
+### LoginUseCase
+
+```dart
+final class LoginUseCase {
+  const LoginUseCase(this._repository);
+  final AuthRepository _repository;
+
+  Future<AuthToken> call(String login, String password) async {
+    final token = await _repository.login(login, password);
+    await _repository.saveToken(token);
+    await _repository.saveAccount(token.account);
+    emitEvent(AuthStateChanged(DateTime.now(), loggedIn: true));
+    return token;
+  }
+}
+```
+
+### LogoutUseCase
+
+Очищает токен и аккаунт из хранилища, эмитит `AuthStateChanged`.
+
+## Launcher
+
+### LaunchGameUseCase
+
+```dart
+Future<void> call({
+  required Profile profile,
+  required AuthToken token,
+  required int maxRamMb,
+  required int minRamMb,
+}) async {
+  await _launchGuard.check(profile.gameDir, profile.uuid);
+  final args = _repository.buildLaunchArgs(profile, token);
+  await _repository.launch(args: args, maxRamMb: maxRamMb, minRamMb: minRamMb);
+}
+```
+
+Перед запуском вызывает `LaunchGuard.check()` — проверяет целостность `.jar`/`.zip` файлов. Если в strict-режиме обнаружены нарушения — бросает `SecurityError`.
+
+## Security
+
+### VerifyBeforeLaunchUseCase
+
+Проверяет все файлы профиля по манифесту. Бросает `SecurityError` если статус `compromised`.
+
+### ScanExtraFilesUseCase
+
+Находит файлы на диске, которых нет в манифесте. Игнорирует `logs/`, `saves/`, `screenshots/`, конфиги.
+
+### FullIntegrityCheckUseCase
+
+Комбинирует `verifyIntegrity` + `scanExtraFiles` в один отчёт.

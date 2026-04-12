@@ -1,0 +1,44 @@
+---
+title: Архитектура
+description: Структура темы и её компоненты
+---
+
+# Архитектура темы
+
+Каждая тема — самостоятельный модуль внутри `themes/`:
+
+```
+themes/
+├── active.dart         — экспорт текущей темы
+├── contract.dart       — AppTheme интерфейс
+└── void_default/       — реализация
+    ├── colors.dart     — палитра
+    ├── text_styles.dart — типографика
+    ├── void_theme.dart — ThemeData
+    ├── theme.dart      — AppTheme реализация + GoRouter
+    ├── routes.dart     — константы маршрутов
+    ├── providers/      — UI-специфичные провайдеры
+    ├── screens/        — экраны по маршрутам
+    └── widgets/        — переиспользуемые компоненты
+```
+
+## Провайдеры
+
+UI-провайдеры живут внутри темы (`providers/`), а не в `core/di/`. Они могут зависеть от core-провайдеров через `ref.watch`.
+
+Пример: `ServersProvider` — AsyncNotifier, который раз в N секунд дёргает `fetchServers()` через адаптер.
+
+## Экраны
+
+Каждый маршрут — отдельная папка в `screens/`:
+
+| Экран | Маршрут | Назначение |
+|-------|---------|-----------|
+| Splash | `/` | Проверка токена, редирект |
+| Auth | `/auth` | Логин |
+| Home | `/home` | Список серверов |
+| Server Detail | `/server/:id` | Профили, запуск |
+| Settings | `/settings` | Java, RAM, версия |
+| Console | `/console` | Вывод процесса |
+
+Все экраны — `ConsumerWidget` или `ConsumerStatefulWidget` (Riverpod).

@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "title": "Начало работы",
+  "pages": ["index", "installation", "configuration", "first-launch"]
+}

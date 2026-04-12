@@ -1,0 +1,36 @@
+---
+title: LaunchGuard
+description: Pre-launch проверка целостности
+---
+
+# LaunchGuard
+
+Проверяет критические файлы (`.jar`, `.zip`) перед запуском игры.
+
+## Режимы
+
+| Режим | Поведение |
+|-------|----------|
+| `strict` | Бросает `SecurityError` если файлы повреждены |
+| `warn` | Возвращает отчёт, но не блокирует запуск |
+| `disabled` | Пропускает проверку |
+
+По умолчанию — `strict`.
+
+## Как работает
+
+1. Загружает манифест из `ManifestStore` для текущего профиля
+2. Фильтрует только `.jar` и `.zip` файлы (критические)
+3. Проверяет SHA-1 каждого файла через `FileIntegrityService`
+4. Если хеш не совпадает — добавляет `HashMismatch` в violations
+5. В strict-режиме при `compromised` статусе — бросает `SecurityError`
+
+## Интеграция
+
+`LaunchGuard.check()` вызывается в `LaunchGameUseCase` перед `buildLaunchArgs`:
+
+```dart
+await _launchGuard.check(profile.gameDir, profile.uuid);
+final args = _repository.buildLaunchArgs(profile, token);
+await _repository.launch(...);
+```

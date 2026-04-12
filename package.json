@@ -10,6 +10,7 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "flexsearch": "^0.8.212",
     "fumadocs-core": "16.7.14",
     "fumadocs-mdx": "14.2.13",
     "fumadocs-ui": "16.7.14",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
+    "@types/flexsearch": "^0.7.6",
     "@types/mdx": "^2.0.13",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",

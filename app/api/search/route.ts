@@ -1,8 +1,5 @@
 import { source } from '@/lib/source';
-import { createFromSource } from 'fumadocs-core/search/server';
+import { flexsearchFromSource } from 'fumadocs-core/search/flexsearch';
 
 export const revalidate = false;
-
-export const { staticGET: GET } = createFromSource(source, {
-  language: 'english',
-});
+export const { staticGET: GET } = flexsearchFromSource(source);

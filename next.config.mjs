@@ -10,6 +10,9 @@ const config = {
   images: {
     unoptimized: true,
   },
+  env: {
+    NEXT_PUBLIC_BASE_PATH: '/Noctis-Docs',
+  },
 };
 
 export default withMDX(config);

@@ -2,16 +2,15 @@
   "name": "noctis-docs",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "next build",
-    "sync": "node --experimental-strip-types scripts/sync-content.ts",
     "dev": "next dev",
     "start": "next start",
     "types:check": "fumadocs-mdx && next typegen && tsc --noEmit",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
-    "@orama/core": "^1.2.19",
     "flexsearch": "^0.8.212",
     "fumadocs-core": "16.7.14",
     "fumadocs-mdx": "14.2.13",

@@ -3,5 +3,5 @@
   "title": "Темы",
   "description": "Система тем и кастомизация UI",
   "icon": "Palette",
-  "pages": ["index", "architecture", "void-default", "creating-theme"]
+  "pages": ["index", "architecture", "void-default", "creating-theme", "launch-notifier"]
 }

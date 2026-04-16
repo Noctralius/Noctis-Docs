@@ -1,0 +1,161 @@
+---
+title: PlatformService
+description: Абстракция над Platform checks и FFI
+---
+
+# PlatformService
+
+`PlatformService` централизует все проверки платформы и работу с FFI. Это позволяет domain-слою не импортировать `dart:io` напрямую, что упрощает тестирование.
+
+## Интерфейс
+
+```dart
+final class PlatformService {
+  const PlatformService();
+
+  bool get isWindows => Platform.isWindows;
+  bool get isLinux => Platform.isLinux;
+  bool get isMacOS => Platform.isMacOS;
+  String get os => Platform.operatingSystem;
+  String get arch => 'x64';
+  String get classpathSeparator => isWindows ? ';' : ':';
+
+  DynamicLibrary? openUser32();
+}
+```
+
+## Использование
+
+### Проверка ОС
+
+Domain может проверять ОС не импортируя `dart:io`:
+
+```dart
+// domain/entities/launch_args.dart — БЕЗ import 'dart:io'
+class LaunchArgs {
+  String toProcessArgs({
+    required int maxRamMb,
+    required int minRamMb,
+    String classpathSeparator = ':',
+  }) {
+    final args = [
+      '-Xmx${maxRamMb}M',
+      '-Xms${minRamMb}M',
+      '-cp',
+      jars.join(classpathSeparator),  // separator инжектится
+    ];
+    return args.join(' ');
+  }
+}
+```
+
+Presentation или adapter инжектирует separator:
+
+```dart
+final launchArgs = server.buildLaunchArgs(token);
+final platformService = ref.read(platformServiceProvider);
+final args = launchArgs.toProcessArgs(
+  maxRamMb: 2048,
+  minRamMb: 512,
+  classpathSeparator: platformService.classpathSeparator,
+);
+```
+
+### Работа с FFI (Windows)
+
+`PlatformService.openUser32()` открывает user32.dll для вызова Windows API:
+
+```dart
+// themes/void_default/widgets/void_title_bar.dart
+class VoidTitleBar extends StatelessWidget {
+  void _minimizeWindow() {
+    final platformService = PlatformService();
+    final user32 = platformService.openUser32();
+    if (user32 != null) {
+      // Вызов WinAPI через user32.dll
+    }
+  }
+}
+```
+
+На Linux и macOS возвращает `null`:
+
+```dart
+final user32 = platformService.openUser32();
+if (user32 != null) {
+  // Код для Windows
+} else {
+  // Код для других ОС
+}
+```
+
+## Dependency Injection
+
+В `core/di/providers.dart`:
+
+```dart
+final platformServiceProvider = Provider<PlatformService>((ref) {
+  return const PlatformService();
+});
+```
+
+## Архитектурный смысл
+
+**Без PlatformService:**
+```dart
+// domain/usecases/launch.dart — нарушает Clean Architecture
+import 'dart:io';
+
+class LaunchGameUseCase {
+  Future<void> call(Server server) async {
+    final separator = Platform.isWindows ? ';' : ':';
+    // ...
+  }
+}
+```
+
+**С PlatformService:**
+```dart
+// domain/usecases/launch.dart — чистая бизнес-логика
+class LaunchGameUseCase {
+  final PlatformService _platform;
+  
+  LaunchGameUseCase(this._platform);
+  
+  Future<void> call(Server server) async {
+    final separator = _platform.classpathSeparator;
+    // ...
+  }
+}
+```
+
+Domain не знает о `dart:io`, только о зависимости от интерфейса.
+
+<Callout type="info" title="Тестируемость">
+В тестах можно подменить PlatformService:
+```dart
+final fakeService = FakePlatformService(
+  isWindows: true,
+  classpathSeparator: ';',
+);
+final useCase = LaunchGameUseCase(fakeService);
+```
+</Callout>
+
+## Расширение
+
+Если понадобится добавить ещё методы (например, `processId`, `userHome`):
+
+```dart
+final class PlatformService {
+  const PlatformService();
+
+  // ... существующие геттеры
+
+  String? get userHome => Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  
+  int get processId => pid;  // из dart:io
+}
+```
+
+Все места, где используется `PlatformService`, автоматически получат доступ к новому методу.

@@ -38,11 +38,28 @@ description: Структура темы и её компоненты
   </Folder>
 </Files>
 
+## Структура внутри темы
+
+Файлы темы организованы по слоям:
+
+| Папка | Назначение |
+|-------|-----------|
+| `theme.dart` | Реализация `AppTheme` |
+| `colors.dart`, `text_styles.dart` | Переиспользуемые стили |
+| `routes.dart` | GoRouter конфиг, ShellRoute |
+| `screens/` | Экраны (auth, home, server_detail, etc) |
+| `screens/*/widgets/` | Widgets разбитых больших экранов |
+| `widgets/` | Общие виджеты темы (GlassPanel, LiquidBackground) |
+| `notifiers/` | AsyncNotifier'ы темы (LaunchNotifier) |
+| `providers/` | UI-провайдеры (ServersProvider, SettingsProvider) |
+
 ## Провайдеры
 
 UI-провайдеры живут внутри темы (`providers/`), а не в `core/di/`. Они могут зависеть от core-провайдеров через `ref.watch`.
 
 Пример: `ServersProvider` — AsyncNotifier, который раз в N секунд дёргает `fetchServers()` через адаптер.
+
+Notifier'ы (например, `LaunchNotifier`) живут в `notifiers/` и управляют состоянием отдельных операций.
 
 ## Экраны
 

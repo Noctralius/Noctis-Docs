@@ -35,10 +35,10 @@ final results = await service.verifyBatch({
 final store = ManifestStore();
 
 // Сохранить после успешного sync
-await store.save(profile.uuid, {'mods/core.jar': 'abc123...', ...});
+await store.save(profile.id, {'mods/core.jar': 'abc123...', ...});
 
 // Загрузить для проверки
-final manifest = await store.load(profile.uuid);
+final manifest = await store.load(profile.id);
 ```
 
 ## ExtraFileScanner

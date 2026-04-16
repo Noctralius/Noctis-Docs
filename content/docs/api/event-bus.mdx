@@ -1,0 +1,200 @@
+---
+title: Event Bus
+description: Система событий и AppEventSink в Noctis
+---
+
+# Event Bus
+
+Event Bus — это центральный механизм для потока событий в приложении. Компоненты эмитят события (запуск игры, завершение синха, смена авторизации), а части UI подписываются на них через StreamProvider.
+
+## Архитектура
+
+<Files>
+  <Folder name="lib" defaultOpen>
+    <Folder name="domain">
+      <Folder name="events">
+        <File name="app_events.dart" />
+      </Folder>
+      <Folder name="services">
+        <File name="app_event_sink.dart" />
+      </Folder>
+    </Folder>
+    <Folder name="core">
+      <Folder name="events">
+        <File name="app_event_sink_impl.dart" />
+      </Folder>
+      <Folder name="di">
+        <File name="providers.dart" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## События (AppEvent)
+
+Всё наследуется от sealed класса `AppEvent`:
+
+```dart
+sealed class AppEvent {
+  const AppEvent(this.timestamp);
+  final DateTime timestamp;
+}
+```
+
+### Встроенные события
+
+| Событие | Параметры | Назначение |
+|---------|-----------|-----------|
+| `GameLaunched` | — | Игра запустилась |
+| `GameExited` | `exitCode: int` | Игра завершилась с кодом |
+| `SyncStarted` | `profileId: String` | Начало синхронизации файлов |
+| `SyncCompleted` | `profileId: String` | Синхронизация завершена |
+| `AuthStateChanged` | `isLoggedIn: bool` | Статус авторизации изменился |
+| `ErrorOccurred` | `error: AppError` | Произошла ошибка |
+
+Каждое событие содержит `timestamp` — время возникновения.
+
+### Пример: добавление нового события
+
+```dart
+class ProfileSwitched extends AppEvent {
+  const ProfileSwitched(super.timestamp, {required this.profileId});
+  final String profileId;
+}
+```
+
+## AppEventSink — интерфейс
+
+Domain не знает о реализации. Все use case'ы зависят от интерфейса:
+
+```dart
+abstract class AppEventSink {
+  void emit(AppEvent event);
+}
+```
+
+Use case инжектирует `AppEventSink` через DI и вызывает `emit()`:
+
+```dart
+class LaunchGameUseCase {
+  final AppEventSink _eventSink;
+
+  LaunchGameUseCase(this._eventSink);
+
+  Future<void> call(Server server) async {
+    // ... запуск логики
+    _eventSink.emit(GameLaunched(DateTime.now()));
+  }
+}
+```
+
+## Реализация (AppEventSinkImpl)
+
+Конкретная реализация через `StreamController.broadcast()`:
+
+```dart
+final class AppEventSinkImpl implements AppEventSink {
+  const AppEventSinkImpl(this._controller);
+  final StreamController<AppEvent> _controller;
+
+  @override
+  void emit(AppEvent event) => _controller.add(event);
+}
+```
+
+## Dependency Injection
+
+В `core/di/providers.dart` три провайдера:
+
+```dart
+// Сам StreamController — синглтон
+final appEventControllerProvider = Provider<StreamController<AppEvent>>((ref) {
+  return StreamController<AppEvent>.broadcast();
+});
+
+// Интерфейс для use case'ов
+final appEventSinkProvider = Provider<AppEventSink>((ref) {
+  final controller = ref.watch(appEventControllerProvider);
+  return AppEventSinkImpl(controller);
+});
+
+// Stream для UI-слушателей
+final appEventProvider = StreamProvider<AppEvent>((ref) {
+  final controller = ref.watch(appEventControllerProvider);
+  return controller.stream;
+});
+```
+
+## Подписка в UI
+
+Use case'ы эмитят события, UI слушает через `appEventProvider`:
+
+```dart
+class LaunchNotifier extends AsyncNotifier<LaunchState> {
+  @override
+  Future<LaunchState> build() async {
+    // Подписываемся на события
+    ref.listen(appEventProvider, (previous, next) {
+      next.whenData((event) {
+        if (event is GameLaunched) {
+          // Игра запустилась
+        }
+      });
+    });
+    return const LaunchIdle();
+  }
+}
+```
+
+Или непосредственно в Widget'е:
+
+```dart
+class ConsoleWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final events = ref.watch(appEventProvider);
+    
+    return events.when(
+      data: (event) {
+        if (event is GameExited) {
+          // Реагируем на выход из игры
+        }
+        return SizedBox();
+      },
+      loading: () => const SizedBox(),
+      error: (e, _) => Text('Error: $e'),
+    );
+  }
+}
+```
+
+<Callout type="info" title="Broadcast vs обычный Stream">
+`StreamController.broadcast()` позволяет множеству слушателей одновременно получать события. Если использовать обычный controller, только первый слушатель будет получать данные.
+</Callout>
+
+## Отличие от Context.of и GetIt
+
+Никаких глобальных сервис-локаторов. Event Bus интегрирован в Riverpod DI, поэтому:
+
+- Dependency-инжекция явная (через параметры конструктора)
+- Тестирование — просто подменить mock-провайдер
+- Нет скрытых зависимостей
+
+## Пример: SyncStarted и SyncCompleted
+
+Адаптер не эмитит события — это делает `LaunchNotifier`:
+
+```dart
+final syncStartTime = DateTime.now();
+sink.emit(SyncStarted(syncStartTime, profileId: profile.id));
+
+final syncStream = adapter.syncAssets(profile, enabledMods: enabledMods);
+
+await for (final progress in syncStream) {
+  state = AsyncData(LaunchDownloading(progress, syncStartTime: syncStartTime));
+}
+
+sink.emit(SyncCompleted(DateTime.now(), profileId: profile.id));
+```
+
+UI, слушающий события, может показать тост "Синхронизация завершена" или обновить индикатор статуса.

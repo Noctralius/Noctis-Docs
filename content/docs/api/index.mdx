@@ -5,15 +5,15 @@ description: Архитектура и ключевые компоненты Noc
 
 # API Reference
 
-Внутренний API Noctis. Здесь описаны адаптеры, сущности, репозитории и use cases.
+Внутренний API Noctis. Здесь описаны адаптеры, сущности, репозитории, use cases и инфраструктура.
 
 Код организован по Clean Architecture:
 
-import { Plug, Box, Database, Zap } from 'lucide-react';
+import { Plug, Box, Database, Zap, Wifi, Globe } from 'lucide-react';
 
 <Cards>
 <Card title="Адаптеры" icon={<Plug />} href="/docs/api/adapters">
-LauncherAdapter и три реализации: Gravit, REST, Mock.
+LauncherAdapter, AdapterRegistry, три реализации: Gravit, REST, Mock.
 </Card>
 <Card title="Сущности" icon={<Box />} href="/docs/api/entities">
 Freezed-модели: Server, Profile, AuthToken и другие.
@@ -24,6 +24,12 @@ Freezed-модели: Server, Profile, AuthToken и другие.
 <Card title="Use Cases" icon={<Zap />} href="/docs/api/usecases">
 Бизнес-операции: авторизация, запуск, проверка.
 </Card>
+<Card title="Event Bus" icon={<Wifi />} href="/docs/api/event-bus">
+Система событий, AppEventSink, подписки на события.
+</Card>
+<Card title="Локализация" icon={<Globe />} href="/docs/api/localization">
+i18n с русским и английским, ErrorPresenter, выбор языка.
+</Card>
 </Cards>
 
 ## Структура проекта
@@ -31,8 +37,22 @@ Freezed-модели: Server, Profile, AuthToken и другие.
 <Files>
   <Folder name="lib" defaultOpen>
     <Folder name="core" defaultOpen>
-      <Folder name="adapter">
+      <Folder name="adapter" defaultOpen>
         <File name="launcher_adapter.dart" />
+        <File name="adapter_registry.dart" />
+        <File name="adapter_registrations.dart" />
+      </Folder>
+      <Folder name="events">
+        <File name="app_event_sink_impl.dart" />
+      </Folder>
+      <Folder name="l10n">
+        <File name="app_en.arb" />
+        <File name="app_ru.arb" />
+        <File name="l10n_extension.dart" />
+        <File name="error_presenter.dart" />
+      </Folder>
+      <Folder name="platform">
+        <File name="platform_service.dart" />
       </Folder>
       <Folder name="security" />
       <Folder name="di">
@@ -41,6 +61,12 @@ Freezed-модели: Server, Profile, AuthToken и другие.
     </Folder>
     <Folder name="domain" defaultOpen>
       <Folder name="entities" />
+      <Folder name="events">
+        <File name="app_events.dart" />
+      </Folder>
+      <Folder name="services">
+        <File name="app_event_sink.dart" />
+      </Folder>
       <Folder name="repositories" />
       <Folder name="usecases" />
     </Folder>

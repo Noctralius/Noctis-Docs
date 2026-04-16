@@ -32,6 +32,8 @@ import { Step, Steps } from 'fumadocs-ui/components/steps';
 ### Реализуй AppTheme
 
 ```dart
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../contract.dart';
 
 class MyTheme implements AppTheme {
@@ -64,6 +66,22 @@ class MyTheme implements AppTheme {
 
   @override
   Widget wrapShell(Widget child) => child;
+
+  @override
+  List<NavItem> get navItems => [
+    NavItem(icon: Icons.home, label: 'Home', route: '/home'),
+    NavItem(icon: Icons.settings, label: 'Settings', route: '/settings'),
+  ];
+
+  @override
+  List<LocalizationsDelegate> get localizationsDelegates => [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  @override
+  List<Locale> get supportedLocales => const [Locale('ru'), Locale('en')];
 }
 ```
 
@@ -113,3 +131,8 @@ class MyHomeScreen extends ConsumerWidget {
 
 </Step>
 </Steps>
+
+<Callout type="warn" title="Не забудь localizationsDelegates">
+Если не переопределить `localizationsDelegates`, локализация не будет работать. Обязательно включай `AppLocalizations.delegate`.
+</Callout>
+

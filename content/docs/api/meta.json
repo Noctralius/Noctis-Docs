@@ -3,5 +3,5 @@
   "title": "API",
   "description": "Адаптеры, сущности, репозитории",
   "icon": "Code",
-  "pages": ["index", "adapters", "entities", "repositories", "usecases"]
+  "pages": ["index", "adapters", "entities", "repositories", "usecases", "event-bus", "localization", "platform-service"]
 }

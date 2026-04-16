@@ -29,14 +29,16 @@ import { LayoutTemplate, Brush, Plus } from 'lucide-react';
 
 ```dart
 abstract class AppTheme {
+  ThemeData get themeData;
   String get splashRoute;
   String get authRoute;
   String get homeRoute;
-  ThemeData get themeData;
-  List<NavigationDestination> get navigationItems;
   List<RouteBase> buildRoutes();
   Widget wrapShell(Widget child);
+  List<NavItem> get navItems;
+  List<LocalizationsDelegate> get localizationsDelegates => [];
+  List<Locale> get supportedLocales => const [Locale('ru'), Locale('en')];
 }
 ```
 
-Тема полностью определяет роуты, навигацию и внешний вид. Core-слой ничего не знает о том, как выглядит приложение.
+Тема полностью определяет роуты, навигацию, внешний вид и поддерживаемые языки. Core-слой ничего не знает о том, как выглядит приложение.

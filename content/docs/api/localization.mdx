@@ -1,0 +1,280 @@
+---
+title: Локализация (i18n)
+description: Поддержка русского и английского в Noctis
+---
+
+# Локализация
+
+Noctis поддерживает русский и английский языки из коробки. Строки хранятся в `.arb` файлах, выбор языка сохраняется в LocalStorage.
+
+## Архитектура
+
+<Files>
+  <Folder name="lib" defaultOpen>
+    <Folder name="core">
+      <Folder name="l10n">
+        <File name="app_en.arb" />
+        <File name="app_ru.arb" />
+        <File name="app_localizations.dart" />
+        <File name="l10n_extension.dart" />
+        <File name="error_presenter.dart" />
+      </Folder>
+    </Folder>
+    <Folder name="themes">
+      <Folder name="void_default">
+        <File name="screens" />
+        <File name="widgets" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+## ARB файлы
+
+Строки определены в JSON-файлах с плейсхолдерами:
+
+**lib/core/l10n/app_en.arb:**
+
+```json
+{
+  "@@locale": "en",
+  "appTitle": "Noctis",
+  "authLogin": "Login",
+  "authPassword": "Password",
+  "authSubmit": "Sign In",
+  "authWrongCredentials": "Wrong login or password",
+  "onlineCount": "{count} online",
+  "@onlineCount": { "placeholders": { "count": { "type": "int" } } }
+}
+```
+
+**lib/core/l10n/app_ru.arb:**
+
+```json
+{
+  "@@locale": "ru",
+  "appTitle": "Noctis",
+  "authLogin": "Логин",
+  "authPassword": "Пароль",
+  "authSubmit": "Вход",
+  "authWrongCredentials": "Неверный логин или пароль",
+  "onlineCount": "{count} онлайн",
+  "@onlineCount": { "placeholders": { "count": { "type": "int" } } }
+}
+```
+
+Flutter генерирует класс `AppLocalizations` с методами-геттерами и методами-функциями для плейсхолдеров.
+
+## Использование в Widget'ах
+
+Расширение `L10nContext` даёт доступ к `context.l10n`:
+
+```dart
+// lib/core/l10n/l10n_extension.dart
+extension L10nContext on BuildContext {
+  AppLocalizations get l10n => AppLocalizations.of(this);
+}
+```
+
+Использование:
+
+```dart
+class AuthScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        Text(context.l10n.authLogin),  // Простая строка
+        Text(context.l10n.onlineCount(42)),  // С параметром
+      ],
+    );
+  }
+}
+```
+
+## Маппинг кодов ошибок на l10n
+
+ErrorPresenter маппирует внутренние коды ошибок на локализованные строки:
+
+```dart
+class ErrorPresenter {
+  static String present(BuildContext context, Object error) {
+    final l10n = context.l10n;
+    
+    if (error is AuthError) {
+      return switch (error.code) {
+        AuthErrorCode.wrongCredentials => l10n.authWrongCredentials,
+        AuthErrorCode.userBlocked => l10n.authUserBlocked,
+        AuthErrorCode.unknown => l10n.authError(error.message),
+      };
+    }
+    
+    if (error is SyncError) {
+      return l10n.syncFailed(error.message);
+    }
+    
+    if (error is LaunchError) {
+      return l10n.launchFailed(error.message);
+    }
+    
+    return error.toString();
+  }
+}
+```
+
+Адаптеры и use case'ы возвращают **коды**, не русский текст:
+
+```dart
+// В адаптере (gravit, custom_rest и т.д.):
+throw AuthError(
+  code: AuthErrorCode.wrongCredentials,
+  message: 'Invalid credentials',  // Для логирования
+);
+```
+
+Presentation слой вызывает ErrorPresenter:
+
+```dart
+if (error is AuthError) {
+  final message = ErrorPresenter.present(context, error);
+  showErrorDialog(context, message);
+}
+```
+
+## Выбор языка (LocaleProvider)
+
+`LocaleProvider` — `NotifierProvider<LocaleNotifier, Locale?>`:
+
+```dart
+final localeProvider = NotifierProvider<LocaleNotifier, Locale?>(...);
+
+class LocaleNotifier extends Notifier<Locale?> {
+  @override
+  Locale? build() async {
+    final storage = ref.read(localStorageProvider);
+    final saved = await storage.loadLocale();
+    return saved != null ? Locale(saved) : null;
+  }
+
+  Future<void> setLocale(String languageCode) async {
+    final storage = ref.read(localStorageProvider);
+    await storage.saveLocale(languageCode);
+    state = Locale(languageCode);
+  }
+}
+```
+
+Использование в Settings:
+
+```dart
+class SettingsScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentLocale = ref.watch(localeProvider);
+    
+    return DropdownButton<String>(
+      value: currentLocale?.languageCode ?? 'ru',
+      items: [
+        DropdownMenuItem(value: 'ru', child: Text('Русский')),
+        DropdownMenuItem(value: 'en', child: Text('English')),
+      ],
+      onChanged: (value) async {
+        if (value != null) {
+          await ref.read(localeProvider.notifier).setLocale(value);
+        }
+      },
+    );
+  }
+}
+```
+
+## Подключение в MaterialApp
+
+В `void_default/theme.dart` тема предоставляет делегаты локализации:
+
+```dart
+class VoidDefaultTheme implements AppTheme {
+  @override
+  List<LocalizationsDelegate> get localizationsDelegates => [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  @override
+  List<Locale> get supportedLocales => const [
+    Locale('ru'),
+    Locale('en'),
+  ];
+}
+```
+
+ShellRoute в `core/di/providers.dart` использует эти значения:
+
+```dart
+return MaterialApp.router(
+  localizationsDelegates: activeTheme.localizationsDelegates,
+  supportedLocales: activeTheme.supportedLocales,
+  locale: ref.watch(localeProvider),
+  // ...
+);
+```
+
+## Важный контракт AppTheme
+
+Все темы ДОЛЖНЫ предоставить:
+
+```dart
+abstract class AppTheme {
+  List<LocalizationsDelegate> get localizationsDelegates => [];
+  List<Locale> get supportedLocales => const [Locale('ru'), Locale('en')];
+}
+```
+
+Если забыть добавить `AppLocalizations.delegate` — l10n не будет работать.
+
+<Callout type="warn" title="Обязательно">
+При создании новой темы не забудьте переопределить `localizationsDelegates` и включить `AppLocalizations.delegate`, иначе `context.l10n` вернёт ошибку.
+</Callout>
+
+## Хранение выбора языка
+
+LocalStorage сохраняет язык в SharedPreferences:
+
+```dart
+// Сохранение
+await storage.saveLocale('en');
+
+// Загрузка (при старте приложения)
+final saved = await storage.loadLocale();  // 'en' или null
+```
+
+При перезапуске приложения выбранный язык восстанавливается автоматически.
+
+## Расширение с новыми строками
+
+1. Добавь ключ в оба `.arb` файла:
+   ```json
+   "myNewString": "English text",
+   ```
+   ```json
+   "myNewString": "Русский текст",
+   ```
+
+2. Сохрани файл — Flutter сгенерирует новый метод в `AppLocalizations`
+
+3. Используй в Widget'е:
+   ```dart
+   Text(context.l10n.myNewString)
+   ```
+
+Если нужен плейсхолдер:
+
+```json
+"welcomeMessage": "Welcome, {name}!",
+"@welcomeMessage": { "placeholders": { "name": { "type": "String" } } }
+```
+
+```dart
+Text(context.l10n.welcomeMessage('Alice'))  // "Welcome, Alice!"
+```

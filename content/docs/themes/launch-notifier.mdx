@@ -1,0 +1,270 @@
+---
+title: LaunchNotifier
+description: Управление состоянием запуска игры
+---
+
+# LaunchNotifier
+
+`LaunchNotifier` — это AsyncNotifier, который управляет полным жизненным циклом запуска: проверка файлов, синхронизация, запуск игры и мониторинг процесса.
+
+Раньше эта логика была распределена по `server_detail_screen.dart` (120+ строк setState). Теперь всё в одном notifier'е.
+
+## Состояния (LaunchState)
+
+```dart
+sealed class LaunchState {
+  const LaunchState();
+}
+
+final class LaunchIdle extends LaunchState {
+  const LaunchIdle();
+}
+
+final class LaunchChecking extends LaunchState {
+  const LaunchChecking();
+}
+
+final class LaunchDownloading extends LaunchState {
+  const LaunchDownloading(this.progress, {this.syncStartTime});
+  final DownloadProgress progress;
+  final DateTime? syncStartTime;
+}
+
+final class LaunchLaunching extends LaunchState {
+  const LaunchLaunching();
+}
+
+final class LaunchRunning extends LaunchState {
+  const LaunchRunning();
+}
+
+final class LaunchFailed extends LaunchState {
+  const LaunchFailed(this.error);
+  final Object error;
+}
+```
+
+## Определение (в notifier'е)
+
+```dart
+class LaunchNotifier extends AsyncNotifier<LaunchState> {
+  final String profileId;
+
+  LaunchNotifier(this.profileId);
+
+  @override
+  Future<LaunchState> build() async {
+    return const LaunchIdle();
+  }
+
+  Future<void> launch(Server server) async {
+    // Полная реализация запуска
+  }
+}
+```
+
+Notifier знает `profileId` и предоставляет публичный метод `launch(Server)`.
+
+## Регистрация
+
+В `core/di/providers.dart`:
+
+```dart
+final launchNotifierProvider = AsyncNotifierProvider.family<
+  LaunchNotifier,
+  LaunchState,
+  String,
+>((ref, profileId) {
+  return LaunchNotifier(profileId);
+});
+```
+
+Флаг `.family` позволяет создавать отдельный notifier для каждого `profileId`.
+
+## Использование в UI
+
+```dart
+class ServerDetailScreen extends ConsumerWidget {
+  final String profileId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final launchState = ref.watch(launchNotifierProvider(profileId));
+    
+    return launchState.when(
+      data: (state) {
+        return switch (state) {
+          LaunchIdle() => ElevatedButton(
+            onPressed: () async {
+              await ref.read(launchNotifierProvider(profileId).notifier)
+                .launch(server);
+            },
+            child: const Text('LAUNCH'),
+          ),
+          LaunchChecking() => const Text('Checking files...'),
+          LaunchDownloading(:final progress) => LinearProgressIndicator(
+            value: progress.percentage / 100,
+          ),
+          LaunchLaunching() => const Text('Starting...'),
+          LaunchRunning() => const Text('Game is running'),
+          LaunchFailed(:final error) => Text('Error: $error'),
+        };
+      },
+      loading: () => const CircularProgressIndicator(),
+      error: (e, _) => Text('Error: $e'),
+    );
+  }
+}
+```
+
+## Жизненный цикл запуска
+
+<Files>
+  <Folder name="themes/void_default" defaultOpen>
+    <Folder name="notifiers">
+      <File name="launch_notifier.dart" />
+    </Folder>
+    <Folder name="screens">
+      <Folder name="server_detail">
+        <File name="server_detail_screen.dart" />
+      </Folder>
+    </Folder>
+  </Folder>
+</Files>
+
+### 1. LaunchIdle → LaunchChecking
+
+```dart
+state = const AsyncData(LaunchChecking());
+```
+
+Проверяем сохранённый токен и загружаем профиль.
+
+### 2. Загрузка preferences модов
+
+```dart
+final hasModPrefs = await storage.hasOptionalModPreferences(profile.id);
+final savedModNames = await storage.getEnabledOptionalMods(profile.id);
+final enabledMods = <String>{};
+
+if (!hasModPrefs) {
+  // Первый запуск — используем defaults
+  for (final mod in profile.optionalMods) {
+    if (mod.enabledByDefault) enabledMods.add(mod.name);
+  }
+} else {
+  // Берём сохранённый выбор пользователя
+  enabledMods.addAll(savedModNames);
+}
+```
+
+### 3. Эмитим SyncStarted, включаем LaunchDownloading
+
+```dart
+final sink = ref.read(appEventSinkProvider);
+final syncStartTime = DateTime.now();
+sink.emit(SyncStarted(syncStartTime, profileId: profile.id));
+
+final syncStream = adapter.syncAssets(profile, enabledMods: enabledMods);
+
+await for (final progress in syncStream) {
+  state = AsyncData(LaunchDownloading(progress, syncStartTime: syncStartTime));
+}
+```
+
+UI видит `LaunchDownloading` и показывает прогресс-бар.
+
+### 4. SyncCompleted, переходим в LaunchLaunching
+
+```dart
+sink.emit(SyncCompleted(DateTime.now(), profileId: profile.id));
+state = const AsyncData(LaunchLaunching());
+```
+
+### 5. Запускаем процесс
+
+```dart
+final token = await authRepo.getSavedToken();
+final launchArgs = profile.buildLaunchArgs(token);
+final process = await Process.start(...);
+sink.emit(GameLaunched(DateTime.now()));
+state = const AsyncData(LaunchRunning());
+```
+
+### 6. Ждём выхода из игры
+
+```dart
+final exitCode = await process.exitCode;
+sink.emit(GameExited(DateTime.now(), exitCode: exitCode));
+state = const AsyncData(LaunchIdle());
+```
+
+## Обработка ошибок
+
+На любом шаге:
+
+```dart
+state = AsyncData(LaunchFailed(error));
+sink.emit(ErrorOccurred(DateTime.now(), error: error));
+```
+
+UI показывает `LaunchFailed` с сообщением об ошибке. Пользователь может нажать кнопку заново.
+
+## Преимущества notifier'а над setState
+
+| Аспект | setState | LaunchNotifier |
+|--------|----------|-----------------|
+| Строк кода | 120+ | ~80 |
+| Реусе | Не возможен | Многоразовое использование |
+| Тестирование | Сложно мокировать | Простое тестирование |
+| Отмена при unmount | Нужно вручную | Автоматическая отмена |
+| Dependencies | Скрыты | Явные через ref |
+
+<Callout type="info" title="Async state">
+`AsyncNotifier` автоматически оборачивает состояние в `AsyncValue`:
+- `data` — успешное состояние (LaunchState)
+- `loading` — грузится (редко используется с `.family`)
+- `error` — исключение при построении notifier'а
+
+Используй `state = const AsyncData(newState)` для переходов между состояниями.
+</Callout>
+
+## Подписка на события в notifier'е
+
+Notifier может слушать события через `ref.listen`:
+
+```dart
+class LaunchNotifier extends AsyncNotifier<LaunchState> {
+  @override
+  Future<LaunchState> build() async {
+    // Слушаем все события в приложении
+    ref.listen(appEventProvider, (previous, next) {
+      next.whenData((event) {
+        if (event is SyncCompleted && event.profileId == profileId) {
+          // Реагируем на завершение синха
+        }
+      });
+    });
+    return const LaunchIdle();
+  }
+}
+```
+
+## Расширение
+
+Если понадобится отслеживать скорость скачивания или время оставшееся:
+
+```dart
+final class LaunchDownloading extends LaunchState {
+  const LaunchDownloading(
+    this.progress, {
+    this.syncStartTime,
+    this.bytesPerSecond,
+  });
+  final DownloadProgress progress;
+  final DateTime? syncStartTime;
+  final double? bytesPerSecond;  // новое поле
+}
+```
+
+LaunchNotifier будет вычислять `bytesPerSecond` из истории прогресса и передавать в состояние.

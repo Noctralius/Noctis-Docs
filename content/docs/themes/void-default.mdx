@@ -49,3 +49,60 @@ Glassmorphism-карточка с `BackdropFilter`. Параметры: `blur` (
 
 </Tab>
 </Tabs>
+
+## Структура темы
+
+```
+themes/void_default/
+  theme.dart              # Реализация AppTheme
+  colors.dart             # VoidColors
+  text_styles.dart        # VoidTextStyles
+  routes.dart             # GoRouter конфиг
+  screens/
+    auth/
+      auth_screen.dart
+    home/
+      home_screen.dart
+      widgets/            # Разбитые компоненты
+    server_detail/
+      server_detail_screen.dart
+      widgets/
+    settings/
+      settings_screen.dart
+    console/
+      console_screen.dart
+    splash/
+      splash_screen.dart
+  widgets/
+    glass_panel.dart
+    liquid_background.dart
+    void_title_bar.dart
+    void_notification.dart
+  notifiers/
+    launch_notifier.dart  # Управление запуском игры
+  providers/
+    servers_provider.dart # Загрузка списка серверов
+```
+
+## Локализация
+
+Void Default обязательно включает `AppLocalizations.delegate` в `localizationsDelegates`:
+
+```dart
+class VoidDefaultTheme implements AppTheme {
+  @override
+  List<LocalizationsDelegate> get localizationsDelegates => [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ];
+
+  @override
+  List<Locale> get supportedLocales => const [
+    Locale('ru'),
+    Locale('en'),
+  ];
+}
+```
+
+Это позволяет использовать `context.l10n` во всех экранах.

@@ -82,3 +82,144 @@ HTTP-адаптер через Dio.
 
 </Tab>
 </Tabs>
+
+## AdapterRegistry
+
+Регистрация адаптеров централизована в `AdapterRegistry`. Это позволяет добавлять новые адаптеры без изменения кода, который их создаёт.
+
+### Структура
+
+```dart
+class AdapterRegistry {
+  void register(
+    String type, {
+    required AdapterFactory factory,
+    required AdapterConfig Function(Map<String, dynamic>) fromJson,
+  });
+
+  LauncherAdapter create(AdapterConfig config);
+  AdapterConfig parseConfig(Map<String, dynamic> json);
+  List<String> get registeredTypes;
+}
+```
+
+### Встроенные адаптеры
+
+В `lib/core/adapter/adapter_registrations.dart`:
+
+```dart
+void registerBuiltinAdapters(AdapterRegistry registry) {
+  registry.register(
+    'gravit',
+    factory: (config) => GravitAdapter(config as GravitConfig),
+    fromJson: GravitConfig.fromJson,
+  );
+  registry.register(
+    'custom_rest',
+    factory: (config) => CustomRestAdapter(config as CustomRestConfig),
+    fromJson: CustomRestConfig.fromJson,
+  );
+  registry.register(
+    'mock',
+    factory: (_) => MockAdapter(),
+    fromJson: (_) => const MockConfig(),
+  );
+}
+```
+
+### Использование в DI
+
+В `core/di/providers.dart`:
+
+```dart
+final adapterRegistryProvider = Provider<AdapterRegistry>((ref) {
+  final registry = AdapterRegistry();
+  registerBuiltinAdapters(registry);
+  return registry;
+});
+
+final launcherAdapterProvider = Provider<LauncherAdapter>((ref) {
+  final config = ref.watch(adapterConfigProvider);
+  final registry = ref.watch(adapterRegistryProvider);
+  return registry.create(config);
+});
+```
+
+При загрузке конфига — парсим JSON через registry:
+
+```dart
+final adapterConfig = registry.parseConfig(configJson);
+```
+
+### Добавление своего адаптера
+
+Три шага:
+
+#### 1. Создай класс адаптера
+
+```dart
+// lib/core/adapter/my_adapter/my_adapter.dart
+class MyAdapter implements LauncherAdapter {
+  MyAdapter(this.config);
+  final MyAdapterConfig config;
+
+  @override
+  Future<AuthToken> login(String login, String password) async {
+    // Твоя реализация
+  }
+  
+  // Остальные методы интерфейса...
+}
+
+// Конфиг
+class MyAdapterConfig implements AdapterConfig {
+  const MyAdapterConfig({required this.endpoint});
+  final String endpoint;
+
+  factory MyAdapterConfig.fromJson(Map<String, dynamic> json) {
+    return MyAdapterConfig(endpoint: json['endpoint'] as String);
+  }
+
+  @override
+  String get type => 'my_adapter';
+}
+```
+
+#### 2. Зарегистрируй в `adapter_registrations.dart`
+
+```dart
+void registerBuiltinAdapters(AdapterRegistry registry) {
+  // Существующие адаптеры...
+  
+  registry.register(
+    'my_adapter',
+    factory: (config) => MyAdapter(config as MyAdapterConfig),
+    fromJson: MyAdapterConfig.fromJson,
+  );
+}
+```
+
+#### 3. Используй в конфиге приложения
+
+```json
+{
+  "adapter": {
+    "type": "my_adapter",
+    "endpoint": "https://example.com/api"
+  }
+}
+```
+
+При загрузке конфига:
+
+```dart
+final json = jsonDecode(configString);
+final config = registry.parseConfig(json['adapter']);  // Вернёт MyAdapterConfig
+final adapter = registry.create(config);  // Вернёт MyAdapter
+```
+
+Registry сам разберётся какой класс использовать на основе `"type"`.
+
+<Callout type="info" title="Новый адаптер = только 3 правки">
+Чтобы добавить новый адаптер, нужно поменять только `adapter_registrations.dart`. Остальной код (DI, создание) не трогается.
+</Callout>

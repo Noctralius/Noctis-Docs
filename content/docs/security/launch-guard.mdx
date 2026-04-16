@@ -30,7 +30,7 @@ description: Pre-launch проверка целостности
 `LaunchGuard.check()` вызывается в `LaunchGameUseCase` перед `buildLaunchArgs`:
 
 ```dart
-await _launchGuard.check(profile.gameDir, profile.uuid);
+await _launchGuard.check(profile.gameDir, profile.id);
 final args = _repository.buildLaunchArgs(profile, token);
 await _repository.launch(...);
 ```

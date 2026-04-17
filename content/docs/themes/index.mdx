@@ -42,3 +42,25 @@ abstract class AppTheme {
 ```
 
 Тема полностью определяет роуты, навигацию, внешний вид и поддерживаемые языки. Core-слой ничего не знает о том, как выглядит приложение.
+
+## Project Name
+
+Имя проекта (`projectName`) берётся из `AppConfig.app.projectName` (по умолчанию `'Noctis'`). Это НЕ локализуемое значение — одинаковое на всех языках.
+
+В интерфейсе используется `.toUpperCase()`:
+
+```dart
+// auth_screen.dart
+Text(projectName.toUpperCase())  // "NOCTIS" вместо "Noctis"
+
+// splash_screen.dart
+Text(projectName.toUpperCase())
+
+// MaterialApp title
+MaterialApp.router(
+  title: projectName,  // Для системы, не UI
+  // ...
+)
+```
+
+Это позволяет владельцам лаунчера переименовать приложение через конфиг без изменения UI кода.

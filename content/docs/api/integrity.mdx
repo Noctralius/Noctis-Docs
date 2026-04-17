@@ -1,0 +1,309 @@
+---
+title: Integrity
+description: Проверка целостности файлов перед запуском
+---
+
+# Проверка целостности
+
+Целостность — это слой безопасности, срабатывающий ПЕРЕД запуском игры. Система гарантирует что на диске точно те файлы, которые ожидает сервер.
+
+<Callout type="warn" title="Почему это критично">
+Манифест без подписи (просто JSON) — это security theatre. Любой может перехватить и поддельный манифест. Поэтому:
+- **GravitAdapter** полагается на авторитет сервера (server-authoritative)
+- **CustomRestAdapter** требует Ed25519 подпись (cryptographic proof)
+- **MockAdapter** для разработки вообще не проверяет
+</Callout>
+
+## Архитектура
+
+Каждый `LauncherAdapter` предоставляет свою `IntegrityStrategy`:
+
+```dart
+abstract interface class LauncherAdapter {
+  IntegrityStrategy get integrityStrategy;
+  // остальные методы...
+}
+```
+
+Перед запуском `LaunchGameUseCase` вызывает:
+
+```dart
+final integrityResult = await integrityStrategy.verify(profile);
+if (integrityResult is IntegrityFailed) {
+  throw SecurityError(integrityResult.code);
+}
+```
+
+## Интерфейс
+
+```dart
+abstract interface class IntegrityStrategy {
+  Future<IntegrityResult> verify(Profile profile);
+}
+
+sealed class IntegrityResult {}
+
+final class IntegrityOk extends IntegrityResult {
+  const IntegrityOk();
+}
+
+final class IntegrityFailed extends IntegrityResult {
+  const IntegrityFailed(this.code, {this.detail});
+  final String code;      // напр. 'integrity.fileCorrupted'
+  final String? detail;   // напр. 'path/to/file.jar'
+}
+```
+
+## Реализации
+
+### NoopIntegrityStrategy (Mock)
+
+Используется `MockAdapter`. Всегда возвращает `IntegrityOk`:
+
+```dart
+final class NoopIntegrityStrategy implements IntegrityStrategy {
+  @override
+  Future<IntegrityResult> verify(Profile profile) async => const IntegrityOk();
+}
+```
+
+Для разработки UI без настоящего бэкенда.
+
+### ForwardVerifyIntegrityStrategy (Gravit)
+
+Используется `GravitAdapter`. Запрашивает СВЕЖИЙ манифест с сервера и сверяет на месте:
+
+```dart
+final class ForwardVerifyIntegrityStrategy implements IntegrityStrategy {
+  @override
+  Future<IntegrityResult> verify(Profile profile) async {
+    // 1. Отправить WS-запрос серверу
+    final clientUpdate = await _ws.send({
+      'type': 'update',
+      'dirName': profile.gameDir
+    });
+    final hdir = clientUpdate['hdir'] as Map<String, dynamic>;
+
+    // 2. Для каждого файла в hdir сверить SHA-1
+    for (final entry in _flattenHdir(hdir)) {
+      final file = File(p.join(_baseDir, entry.path));
+      if (!await _fileMatches(file, entry)) {
+        return IntegrityFailed('integrity.serverMismatch', detail: entry.path);
+      }
+    }
+
+    return const IntegrityOk();
+  }
+}
+```
+
+**Преимущества:**
+- Источник истины — свежий запрос с сервера, а не старевший манифест
+- Server-authoritative: сервер может исправить ошибку на лету
+- Без дополнительной конфигурации
+
+**Ошибки:**
+- `integrity.fetchFailed` — ошибка соединения с сервером
+- `integrity.serverMismatch` — файл на диске не совпадает с сервером
+
+### SignedManifestIntegrityStrategy (CustomRest)
+
+Используется `CustomRestAdapter`. Загружает манифест с подписью Ed25519:
+
+```dart
+final class SignedManifestIntegrityStrategy implements IntegrityStrategy {
+  @override
+  Future<IntegrityResult> verify(Profile profile) async {
+    // 1. GET /manifest/signed?profileId=<id>
+    final response = await _dio.get(_manifestEndpoint, queryParameters: {
+      'profileId': profile.id
+    });
+    final manifest = response.data['manifest'] as String;      // JSON-строка
+    final signature = response.data['signature'] as String;    // base64
+
+    // 2. Verifyить подпись над БАЙТАМИ manifest-строки
+    final messageBytes = utf8.encode(manifest);
+    final signatureBytes = base64.decode(signature);
+    final isValid = await _verifier.verifyEd25519(
+      message: messageBytes,
+      signature: signatureBytes,
+      publicKey: _publicKey,  // Из конфига
+    );
+    if (!isValid) {
+      return const IntegrityFailed('integrity.signatureInvalid');
+    }
+
+    // 3. Парсим JSON и сверяем SHA-1 каждого файла
+    final manifestJson = jsonDecode(manifest) as Map<String, dynamic>;
+    final files = manifestJson['files'] as Map<String, dynamic>? ?? {};
+    for (final entry in files.entries) {
+      final path = p.join(profile.gameDir, entry.key);
+      final ok = await _integrity.verifyFile(path, entry.value as String);
+      if (!ok) {
+        return IntegrityFailed('integrity.fileCorrupted', detail: entry.key);
+      }
+    }
+
+    return const IntegrityOk();
+  }
+}
+```
+
+## Формат endpoint-а (для владельцев серверов)
+
+**Запрос:**
+
+```http
+GET /manifest/signed?profileId=player123
+```
+
+**Ответ:**
+
+```json
+{
+  "manifest": "{\"version\": 1, \"files\": {...}}",
+  "signature": "base64-encoded-ed25519-signature"
+}
+```
+
+**Структура манифеста** (внутри `manifest`-строки):
+
+```json
+{
+  "version": 1,
+  "files": {
+    "mods/mod.jar": "aGVsbG8gd29ybGQ=",
+    "config.json": "dGVzdA==",
+    "subdir/file.dat": "c2lnbmF0dXJl"
+  }
+}
+```
+
+Хеши — **SHA-1 в base64**, пути — относительно `profile.gameDir`.
+
+## Генерация подписи (Node.js)
+
+Владельцы серверов используют этот код для подписания манифеста:
+
+```javascript
+const nacl = require('tweetnacl');
+const crypto = require('crypto');
+
+function signManifest(manifest, secretKeyHex) {
+  // secretKeyHex — 128-символная hex-строка (64 bytes в raw)
+  const secretKey = Buffer.from(secretKeyHex, 'hex');
+  const keyPair = nacl.sign.keyPair.fromSecretKey(secretKey);
+  
+  const manifestBytes = Buffer.from(manifest, 'utf8');
+  const signature = nacl.sign.detached(manifestBytes, keyPair.secretKey);
+  
+  return Buffer.from(signature).toString('base64');
+}
+
+// Использование:
+const manifest = JSON.stringify({
+  version: 1,
+  files: {
+    'mods/awesome-mod.jar': 'ABCDef123==',
+    'config.json': 'XYZabc456=='
+  }
+});
+
+const secretKeyHex = '...'; // Твой приватный ключ
+const signature = signManifest(manifest, secretKeyHex);
+
+// Вернуть в ответе:
+response.json({
+  manifest: manifest,
+  signature: signature
+});
+```
+
+<Callout type="info" title="Публичный ключ в конфиге">
+Публичный ключ хранится в конфиге адаптера (`CustomRestConfig.publicKeyHex`). Это открытый ключ, можно класть в исходник.
+</Callout>
+
+## Конфигурация CustomRestAdapter
+
+```dart
+class CustomRestConfig implements AdapterConfig {
+  const CustomRestConfig({
+    required this.endpoint,
+    this.publicKeyHex = '',                        // Публичный ключ Ed25519 в hex
+    this.manifestEndpoint = '/manifest/signed',   // Куда запрашивать манифест
+  });
+  
+  final String endpoint;
+  final String publicKeyHex;
+  final String manifestEndpoint;
+}
+```
+
+В JSON:
+
+```json
+{
+  "adapter": {
+    "type": "custom_rest",
+    "endpoint": "https://my-server.com/api",
+    "publicKeyHex": "abcd1234...efgh5678",
+    "manifestEndpoint": "/manifest/signed"
+  }
+}
+```
+
+Если `publicKeyHex` пуст или отсутствует, адаптер использует `NoopIntegrityStrategy` (с warning в debug-логе).
+
+## Коды ошибок
+
+| Код | Значение | Стратегия |
+|-----|----------|-----------|
+| `integrity.fetchFailed` | Ошибка загрузки манифеста | ForwardVerify, SignedManifest |
+| `integrity.signatureInvalid` | Подпись не совпадает или не распарсилась | SignedManifest |
+| `integrity.serverMismatch` | Файл на диске не совпадает с сервером | ForwardVerify |
+| `integrity.fileCorrupted` | Файл скорруптирован или удалён (с деталью: имя файла) | SignedManifest |
+| `integrity.checkFailed` | Общая ошибка (fallback) | Все |
+
+Коды маппируются на l10n ключи в `ErrorPresenter`.
+
+## Добавление своей стратегии
+
+Если создаёшь новый адаптер, реализуй `IntegrityStrategy`:
+
+```dart
+class MyIntegrityStrategy implements IntegrityStrategy {
+  MyIntegrityStrategy({required this.config});
+  final MyConfig config;
+
+  @override
+  Future<IntegrityResult> verify(Profile profile) async {
+    try {
+      // 1. Загрузить манифест от сервера
+      // 2. Проверить подпись (если требуется)
+      // 3. Сверить файлы
+      
+      if (allFilesMatch) {
+        return const IntegrityOk();
+      } else {
+        return const IntegrityFailed('integrity.customError');
+      }
+    } catch (e) {
+      return const IntegrityFailed('integrity.fetchFailed');
+    }
+  }
+}
+
+class MyAdapter implements LauncherAdapter {
+  @override
+  IntegrityStrategy get integrityStrategy => MyIntegrityStrategy(config: _config);
+}
+```
+
+<Callout type="info" title="Целостность = доверие">
+Интегрити-стратегия воплощает модель доверия:
+- **Noop** — разработка, без доверия
+- **ForwardVerify** — доверие к серверу (он правит манифест в реальtime)
+- **SignedManifest** — криптографическое доверие (только подписанный манифест принимаем)
+
+Выбери стратегию исходя из модели доверия твоего сервера.
+</Callout>

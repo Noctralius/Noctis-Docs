@@ -1,0 +1,257 @@
+---
+title: Создание модуля
+description: Пошаговое руководство по созданию модуля
+---
+
+# Создание модуля
+
+Создадим модуль, который отслеживает синхронизацию и логирует события.
+
+## Шаг 1: Создай папку и файл модуля
+
+```bash
+mkdir lib/modules/sync_logger
+touch lib/modules/sync_logger/sync_logger_module.dart
+```
+
+## Шаг 2: Реализуй интерфейс FeatureModule
+
+```dart
+// lib/modules/sync_logger/sync_logger_module.dart
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/events/app_events.dart';
+import '../../domain/modules/feature_module.dart';
+
+class SyncLoggerModule implements FeatureModule {
+  StreamSubscription<AppEvent>? _eventSub;
+
+  @override
+  String get id => 'sync_logger';
+
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    // Подписываемся на события
+    _eventSub = context.events.listen(_handleEvent);
+    print('[$id] Module initialized');
+  }
+
+  void _handleEvent(AppEvent event) {
+    switch (event) {
+      case SyncStarted(:final profileId, :final serverName):
+        print('[$id] Sync started for profile=$profileId on server=$serverName');
+      
+      case SyncCompleted(:final profileId):
+        print('[$id] Sync completed for profile=$profileId');
+      
+      case GameLaunched(:final serverName):
+        print('[$id] Game launched on server=$serverName');
+      
+      case GameExited(:final exitCode):
+        print('[$id] Game exited with code=$exitCode');
+      
+      default:
+        break;
+    }
+  }
+
+  @override
+  Future<void> onDispose() async {
+    await _eventSub?.cancel();
+    _eventSub = null;
+    print('[$id] Module disposed');
+  }
+}
+```
+
+## Шаг 3: Добавь конфиг в app_config.example.json
+
+```json
+{
+  "modules": {
+    "sync_logger": {
+      "enabled": true
+    }
+  }
+}
+```
+
+## Шаг 4: Запусти скрипт генератор
+
+```bash
+# На Windows
+dart scripts/generate_modules.dart
+
+# На Linux/Mac
+dart scripts/generate_modules.dart
+```
+
+Скрипт найдёт класс `SyncLoggerModule` и добавит его в регистр:
+
+```dart
+// lib/modules/_modules.g.dart (сгенерировано)
+ModuleRegistry buildBuiltinModuleRegistry() => ModuleRegistry([
+  // ... другие модули
+  SyncLoggerModule(),
+  // ...
+]);
+```
+
+## Шаг 5: Используй модуль
+
+```bash
+flutter pub run build_runner build
+flutter run
+```
+
+Твой модуль будет инициализирован при старте приложения. Логи будут выводиться при каждом событии.
+
+## Пример: модуль с конфигом
+
+Модуль может принимать конфиг из `AppConfig.modules`:
+
+```dart
+// lib/modules/my_config_module/my_config_module.dart
+class MyConfigModule implements FeatureModule {
+  @override
+  String get id => 'my_config';
+
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    // Читаем конфиг из AppConfig
+    final config = context.moduleConfig;
+    final logLevel = config['logLevel'] as String? ?? 'info';
+    final maxRetries = config['maxRetries'] as int? ?? 3;
+    
+    print('[$id] Initialized with logLevel=$logLevel, maxRetries=$maxRetries');
+  }
+
+  @override
+  Future<void> onDispose() async {}
+}
+```
+
+В конфиге:
+
+```json
+{
+  "modules": {
+    "my_config": {
+      "enabled": true,
+      "logLevel": "debug",
+      "maxRetries": 5
+    }
+  }
+}
+```
+
+## Пример: модуль с доступом к провайдерам
+
+```dart
+class AuthTrackingModule implements FeatureModule {
+  ProviderContainer? _container;
+
+  @override
+  String get id => 'auth_tracking';
+
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    final container = context.container;
+    if (container is ProviderContainer) {
+      _container = container;
+      
+      // Читаем текущий статус авторизации
+      final authState = container.read(authStateProvider);
+      print('[$id] Initial auth state: $authState');
+      
+      // Слушаем изменения
+      container.listen(authStateProvider, (previous, next) {
+        print('[$id] Auth state changed: $previous -> $next');
+      });
+    }
+  }
+
+  @override
+  Future<void> onDispose() async {}
+}
+```
+
+<Callout type="info" title="Импорты">
+Убедись что импортируешь `FeatureModule` и `FeatureModuleContext` из `domain/modules/feature_module.dart`, а не из других файлов. Генератор ищет именно этот интерфейс.
+</Callout>
+
+## Пример: модуль с фоновой задачей
+
+```dart
+class HealthCheckModule implements FeatureModule {
+  Timer? _timer;
+  ProviderContainer? _container;
+
+  @override
+  String get id => 'health_check';
+
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    final container = context.container;
+    if (container is ProviderContainer) {
+      _container = container;
+    }
+    
+    // Проверяем статус сервера каждые 30 секунд
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      try {
+        final adapter = _container?.read(launcherAdapterProvider);
+        // Выполняем какую-то проверку
+        print('[$id] Health check passed');
+      } catch (e) {
+        print('[$id] Health check failed: $e');
+      }
+    });
+  }
+
+  @override
+  Future<void> onDispose() async {
+    _timer?.cancel();
+    _timer = null;
+  }
+}
+```
+
+## Отладка
+
+Чтобы проверить что модуль загружен:
+
+```dart
+class MyDebugScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // В main.dart:
+    // final registry = buildBuiltinModuleRegistry();
+    // print('Loaded modules: ${registry.modules.map((m) => m.id).toList()}');
+    
+    return Text('Modules loaded');
+  }
+}
+```
+
+Или в `main.dart` перед `runApp`:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final config = await ConfigLoader().load();
+  final registry = buildBuiltinModuleRegistry();
+  
+  print('Loaded ${registry.modules.length} modules:');
+  for (final module in registry.modules) {
+    print('  - ${module.id}');
+  }
+  
+  runApp(...);
+}
+```
+
+<Callout type="warn" title="Запусти генератор после создания">
+Если создал новый модуль и забыл запустить `dart scripts/generate_modules.dart`, модуль не будет зарегистрирован и `onInit` не вызовется.
+</Callout>

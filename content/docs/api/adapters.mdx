@@ -83,6 +83,161 @@ HTTP-адаптер через Dio.
 </Tab>
 </Tabs>
 
+## IntegrityStrategy
+
+Перед запуском игры `LaunchGameUseCase` проверяет целостность файлов через `IntegrityStrategy`. Это слой безопасности, специфичный для каждого адаптера.
+
+### Интерфейс
+
+```dart
+abstract interface class IntegrityStrategy {
+  Future<IntegrityResult> verify(Profile profile);
+}
+
+sealed class IntegrityResult {
+  const IntegrityResult();
+}
+
+final class IntegrityOk extends IntegrityResult {
+  const IntegrityOk();
+}
+
+final class IntegrityFailed extends IntegrityResult {
+  const IntegrityFailed(this.code, {this.detail});
+  final String code;
+  final String? detail;
+}
+```
+
+Результат — либо `IntegrityOk` (файлы в порядке), либо `IntegrityFailed` с кодом ошибки (например, `'integrity.fileCorrupted'`).
+
+### Стратегии по адаптерам
+
+| Адаптер | Стратегия | Суть |
+|---------|-----------|------|
+| **Mock** | `NoopIntegrityStrategy` | Всегда возвращает `IntegrityOk` |
+| **GravitAdapter** | `ForwardVerifyIntegrityStrategy` | Запрашивает свежий манифест с сервера через WS и сверяет с локальными файлами (SHA-1) |
+| **CustomRestAdapter** | `SignedManifestIntegrityStrategy` | Загружает JSON-манифест с подписью Ed25519, проверяет подпись, потом сверяет файлы |
+
+### ForwardVerifyIntegrityStrategy (GravitAdapter)
+
+`LauncherAdapter` получает метод-геттер:
+
+```dart
+abstract interface class LauncherAdapter {
+  IntegrityStrategy get integrityStrategy;
+  // остальные методы...
+}
+```
+
+Стратегия в начале запуска:
+1. Отправляет WS-запрос `{'type': 'update', 'dirName': profile.gameDir}` 
+2. Получает `hdir` (иерархический манифест файлов с SHA-1 в base64)
+3. Сверяет каждый файл локально
+4. Возвращает `IntegrityOk` или `IntegrityFailed('integrity.serverMismatch')`
+
+### SignedManifestIntegrityStrategy (CustomRestAdapter)
+
+**Конфиг адаптера расширен:**
+
+```dart
+class CustomRestConfig implements AdapterConfig {
+  const CustomRestConfig({
+    required this.endpoint,
+    this.publicKeyHex = '',  // новое: публичный ключ Ed25519 в hex
+    this.manifestEndpoint = '/manifest/signed',  // новое: где брать манифест
+  });
+  // ...
+}
+```
+
+**Формат endpoint-а** (владельцы серверов):
+
+```http
+GET /manifest/signed?profileId=<profile_id>
+
+Response:
+{
+  "manifest": "<json-string>",
+  "signature": "<base64-encoded-ed25519-signature>"
+}
+```
+
+**Структура манифеста** внутри `manifest`:
+
+```json
+{
+  "version": 1,
+  "files": {
+    "relative/path/file.jar": "<sha1-base64>",
+    "config.json": "<sha1-base64>"
+  }
+}
+```
+
+Стратегия:
+1. Загружает `manifest` + `signature` от сервера
+2. Верифицирует подпись Ed25519 над БАЙТАМИ строки `manifest`
+3. Парсит JSON манифеста
+4. Сверяет SHA-1 каждого файла
+5. Возвращает результат
+
+**Пример Node.js для генерации подписи** (владельцы серверов):
+
+```javascript
+const nacl = require('tweetnacl');
+const crypto = require('crypto');
+
+const manifest = JSON.stringify({
+  version: 1,
+  files: {
+    'mods/mod.jar': 'hash1',
+    'config.json': 'hash2'
+  }
+});
+
+const manifestBytes = Buffer.from(manifest, 'utf8');
+const secretKey = nacl.sign.keyPair.fromSecretKey(secretKeyBytes); // 64 bytes
+const sig = nacl.sign.detached(manifestBytes, secretKey.secretKey);
+const signatureBase64 = Buffer.from(sig).toString('base64');
+
+response.json({
+  manifest: manifest,
+  signature: signatureBase64
+});
+```
+
+### Ошибки целостности (l10n)
+
+| Код | Ключ в AppLocalizations | Смысл |
+|-----|------------------------|-------|
+| `integrity.fetchFailed` | `integrityFetchFailed` | Не удалось скачать манифест |
+| `integrity.signatureInvalid` | `integritySignatureInvalid` | Подпись не совпала или не распарсилась |
+| `integrity.serverMismatch` | `integrityServerMismatch` | Файл на диске не совпадает с манифестом сервера (ForwardVerify) |
+| `integrity.fileCorrupted(file)` | `integrityFileCorrupted({file})` | Файл скорруптирован или удалён (SignedManifest) |
+
+`ErrorPresenter` маппит эти коды на локализованные строки, которые показываются пользователю.
+
+### Добавление своей стратегии
+
+Если создаёшь новый адаптер:
+
+```dart
+class MyAdapter implements LauncherAdapter {
+  @override
+  IntegrityStrategy get integrityStrategy => MyIntegrityStrategy(...);
+}
+
+class MyIntegrityStrategy implements IntegrityStrategy {
+  @override
+  Future<IntegrityResult> verify(Profile profile) async {
+    // Твоя логика проверки целостности
+    if (allOk) return const IntegrityOk();
+    return IntegrityFailed('integrity.custom_code', detail: 'reason');
+  }
+}
+```
+
 ## AdapterRegistry
 
 Регистрация адаптеров централизована в `AdapterRegistry`. Это позволяет добавлять новые адаптеры без изменения кода, который их создаёт.

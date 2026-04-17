@@ -1,0 +1,203 @@
+---
+title: App Config
+description: Конфигурация приложения NOCTIS
+---
+
+# App Config
+
+`AppConfig` — это центральная структура для настройки приложения. Содержит конфиг адаптера, конфиги модулей и опции приложения.
+
+## Структура
+
+```dart
+@freezed
+class AppConfig with _$AppConfig {
+  const factory AppConfig({
+    @Default(<String, dynamic>{'type': 'mock'}) Map<String, dynamic> adapter,
+    @Default(<String, Map<String, dynamic>>{}) Map<String, Map<String, dynamic>> modules,
+    @Default(AppOptions()) AppOptions app,
+  }) = _AppConfig;
+}
+
+@freezed
+class AppOptions with _$AppOptions {
+  const factory AppOptions({
+    @Default('Noctis') String projectName,
+    String? logLevel,
+  }) = _AppOptions;
+}
+```
+
+| Поле | Тип | Назначение |
+|------|-----|-----------|
+| `adapter` | `Map<String, dynamic>` | Конфиг адаптера (тип определяет какой адаптер создавать) |
+| `modules` | `Map<String, Map<String, dynamic>>` | Конфиги отдельных модулей (discord_rpc, и т.д.) |
+| `app.projectName` | `String` | Имя проекта для UI (не локализуется) |
+| `app.logLevel` | `String?` | Уровень логирования (опционально) |
+
+## ConfigLoader
+
+Конфиг загружается при старте приложения через `ConfigLoader`:
+
+```dart
+class ConfigLoader {
+  Future<AppConfig> load() async {
+    final raw = await _readWithFallback();
+    final decoded = jsonDecode(raw) as Map<String, dynamic>;
+    return AppConfig.fromJson(decoded);
+  }
+
+  Future<String> _readWithFallback() async {
+    try {
+      return await rootBundle.loadString('assets/config/app_config.json');
+    } catch (_) {
+      return await rootBundle.loadString('assets/config/app_config.example.json');
+    }
+  }
+}
+```
+
+**Приоритет загрузки:**
+1. `assets/config/app_config.json` (в `.gitignore`, реальные значения)
+2. `assets/config/app_config.example.json` (в git, плейсхолдеры)
+
+## Assets
+
+### app_config.example.json (в git)
+
+```json
+{
+  "adapter": {
+    "type": "mock"
+  },
+  "modules": {
+    "discord_rpc": {
+      "enabled": false,
+      "clientId": "YOUR_DISCORD_APP_CLIENT_ID"
+    }
+  },
+  "app": {
+    "projectName": "Noctis"
+  }
+}
+```
+
+### app_config.json (в .gitignore, только на машине разработчика)
+
+```json
+{
+  "adapter": {
+    "type": "gravit",
+    "host": "150.241.85.211",
+    "port": 9274
+  },
+  "modules": {
+    "discord_rpc": {
+      "enabled": true,
+      "clientId": "YOUR_REAL_DISCORD_CLIENT_ID"
+    }
+  },
+  "app": {
+    "projectName": "Noctis",
+    "logLevel": "debug"
+  }
+}
+```
+
+## Использование в коде
+
+### В main.dart
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final config = await ConfigLoader().load();
+  
+  runApp(
+    ProviderScope(
+      overrides: [
+        appConfigProvider.overrideWithValue(config),
+      ],
+      child: const MyApp(),
+    ),
+  );
+}
+```
+
+### В notifier'ах и widget'ах
+
+```dart
+class MyNotifier extends Notifier<MyState> {
+  @override
+  MyState build() {
+    final config = ref.watch(appConfigProvider);
+    final projectName = config.app.projectName;
+    final discordConfig = config.modules['discord_rpc'] ?? const {};
+    
+    return MyState(projectName);
+  }
+}
+```
+
+## Адаптер конфиг
+
+Поле `adapter` — это пример полиморфизма через `Map`:
+
+```json
+{
+  "adapter": {
+    "type": "gravit",
+    "host": "...",
+    "port": 9274
+  }
+}
+```
+
+`AdapterRegistry.parseConfig()` читает `"type"` и парсит через соответствующий конструктор:
+
+```dart
+final registry = ref.watch(adapterRegistryProvider);
+final adapterConfig = registry.parseConfig(config.adapter);
+final adapter = registry.create(adapterConfig);
+```
+
+Смотри [Адаптеры](/docs/api/adapters) для примеров создания своего адаптера.
+
+## Модули конфиг
+
+Каждый модуль может иметь свой блок в `config.modules`:
+
+```json
+{
+  "modules": {
+    "discord_rpc": {
+      "enabled": true,
+      "clientId": "12345..."
+    },
+    "my_custom_module": {
+      "enabled": true,
+      "someSetting": "value"
+    }
+  }
+}
+```
+
+Модуль получает свой конфиг через `FeatureModuleContext.moduleConfig`:
+
+```dart
+class MyModule implements FeatureModule {
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    final myConfig = context.moduleConfig;
+    final enabled = myConfig['enabled'] as bool? ?? true;
+    final someSetting = myConfig['someSetting'] as String?;
+  }
+}
+```
+
+Если `moduleConfig['enabled'] == false`, модуль вообще не инициализируется.
+
+<Callout type="info" title="Конфиг — декларативен">
+Вся конфигурация описывается в JSON. Код не содержит хардкодированные значения типа хоста, порта, clientId и т.д. Это позволяет запускать один и тот же build на разных серверах без пересборки.
+</Callout>

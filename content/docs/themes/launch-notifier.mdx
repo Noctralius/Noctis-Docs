@@ -163,7 +163,11 @@ if (!hasModPrefs) {
 ```dart
 final sink = ref.read(appEventSinkProvider);
 final syncStartTime = DateTime.now();
-sink.emit(SyncStarted(syncStartTime, profileId: profile.id));
+sink.emit(SyncStarted(
+  syncStartTime,
+  profileId: profile.id,
+  serverName: server.name,  // Передаём имя сервера
+));
 
 final syncStream = adapter.syncAssets(profile, enabledMods: enabledMods);
 
@@ -177,7 +181,11 @@ UI видит `LaunchDownloading` и показывает прогресс-ба�
 ### 4. SyncCompleted, переходим в LaunchLaunching
 
 ```dart
-sink.emit(SyncCompleted(DateTime.now(), profileId: profile.id));
+sink.emit(SyncCompleted(
+  DateTime.now(),
+  profileId: profile.id,
+  serverName: server.name,
+));
 state = const AsyncData(LaunchLaunching());
 ```
 
@@ -187,9 +195,13 @@ state = const AsyncData(LaunchLaunching());
 final token = await authRepo.getSavedToken();
 final launchArgs = profile.buildLaunchArgs(token);
 final process = await Process.start(...);
-sink.emit(GameLaunched(DateTime.now()));
+sink.emit(GameLaunched(DateTime.now(), serverName: server.name));
 state = const AsyncData(LaunchRunning());
 ```
+
+<Callout type="info" title="GameLaunched только из LaunchNotifier">
+Этот метод эмитит `GameLaunched` ровно один раз — когда процесс действительно стартовал. Раньше событие дублировалось в `GameProcessManager._setState()`, теперь это убрано. Источник истины для `GameLaunched` — `LaunchNotifier`.
+</Callout>
 
 ### 6. Ждём выхода из игры
 

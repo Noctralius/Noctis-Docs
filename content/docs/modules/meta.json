@@ -1,0 +1,7 @@
+{
+  "root": true,
+  "title": "Модули",
+  "description": "Zero-registration расширяемость",
+  "icon": "Package",
+  "pages": ["index", "creating-module", "discord-rpc"]
+}

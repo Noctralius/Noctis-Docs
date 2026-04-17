@@ -1,0 +1,183 @@
+---
+title: Модули
+description: Zero-registration модули в Noctis
+---
+
+# Модули
+
+Noctis поддерживает расширение через **zero-registration модули**. Нет конфига, нет явной регистрации — просто положи папку, скрипт подхватит.
+
+import { Package, Zap, Settings } from 'lucide-react';
+
+<Cards>
+<Card title="Структура" icon={<Package />} href="/docs/modules/structure">
+Как устроены модули, интерфейсы, контекст.
+</Card>
+<Card title="Создание модуля" icon={<Zap />} href="/docs/modules/creating-module">
+Пошаговое руководство с примерами.
+</Card>
+<Card title="Discord RPC" icon={<Settings />} href="/docs/modules/discord-rpc">
+Встроенный модуль, показывает статус в Discord.
+</Card>
+</Cards>
+
+## Концепция
+
+**Раньше:**
+```dart
+// core/di/providers.dart
+final moduleRegistry = ModuleRegistry([
+  MyModule(),
+  AnotherModule(),
+  // + ещё 20 строк регистрации...
+]);
+```
+
+**Теперь:**
+```bash
+lib/modules/
+  my_module/
+    my_module_module.dart  # класс MyModuleModule implements FeatureModule
+  another_module/
+    another_module_module.dart
+```
+
+Скрипт `scripts/generate_modules.dart` сканирует папку и генерирует регистрацию:
+
+```dart
+// Генерируется автоматически в lib/modules/_modules.g.dart
+ModuleRegistry buildBuiltinModuleRegistry() => ModuleRegistry([
+  MyModuleModule(),
+  AnotherModuleModule(),
+]);
+```
+
+Никаких ручных правок, никакого boilerplate.
+
+## Интерфейс
+
+```dart
+abstract class FeatureModule {
+  String get id;
+  Future<void> onInit(FeatureModuleContext context);
+  Future<void> onDispose();
+}
+
+class FeatureModuleContext {
+  const FeatureModuleContext({
+    required this.moduleConfig,
+    required this.events,
+    this.container,
+  });
+
+  final Map<String, dynamic> moduleConfig;  // Из AppConfig
+  final Stream<AppEvent> events;            // Глобальный event stream
+  final Object? container;                  // ProviderContainer для доступа к провайдерам
+}
+```
+
+## Жизненный цикл
+
+1. **onInit** — срабатывает при старте приложения (после загрузки конфига)
+   - `moduleConfig` содержит конфиг модуля из `AppConfig.modules[id]`
+   - Если `moduleConfig['enabled'] == false` — `onInit` вообще не вызывается
+   - Здесь инициализируем слушатели событий, запускаем фоновые задачи
+
+2. **onDispose** — срабатывает при выключении приложения
+   - Отменяем подписки, закрываем соединения, освобождаем ресурсы
+
+## Использование провайдеров
+
+Модуль получает `ProviderContainer` в `context.container`:
+
+```dart
+class MyModule implements FeatureModule {
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    final container = context.container;
+    if (container is ProviderContainer) {
+      // Читаем провайдеры
+      final authState = container.read(authStateProvider);
+      final locale = container.read(localeProvider);
+      
+      // Слушаем изменения
+      container.listen(localeProvider, (_, next) {
+        print('Язык изменился на $next');
+      });
+    }
+  }
+}
+```
+
+## Подписка на события
+
+```dart
+@override
+Future<void> onInit(FeatureModuleContext context) async {
+  context.events.listen((event) {
+    switch (event) {
+      case GameLaunched(:final serverName):
+        print('Игра запущена на $serverName');
+      case SyncCompleted(:final profileId):
+        print('Синхронизация завершена для $profileId');
+      case AuthStateChanged():
+        print('Статус авторизации изменился');
+      default:
+        break;
+    }
+  });
+}
+```
+
+## Конвенция файловой структуры
+
+```
+lib/modules/
+  <module_name>/
+    <module_name>_module.dart          # Основной класс модуля
+    (другие файлы по необходимости)
+```
+
+**Примеры:**
+```
+lib/modules/
+  discord_rpc/
+    discord_rpc_module.dart
+    discord_rpc_client.dart
+    noop_discord_rpc_client.dart
+  my_feature/
+    my_feature_module.dart
+    my_feature_service.dart
+```
+
+Имя класса модуля должно заканчиваться на `Module`, например `DiscordRpcModule`, `MyFeatureModule`.
+
+<Callout type="info" title="Скрипт генератор">
+Перед сборкой приложения (в `start.ps1` или вручную):
+```bash
+dart scripts/generate_modules.dart
+flutter pub run build_runner build
+```
+
+Это генерирует `lib/modules/_modules.g.dart` с регистрацией.
+</Callout>
+
+## Отключение модуля
+
+В конфиге:
+
+```json
+{
+  "modules": {
+    "discord_rpc": {
+      "enabled": false
+    }
+  }
+}
+```
+
+Модуль не инициализируется, но класс остаётся в коде (для удаления на уровне сборки нужна feature-модулизация, что отложено).
+
+<Callout type="warn" title="Конфигурационная логика в onInit">
+Не проверяй `enabled` самостоятельно — ModuleRegistry делает это за тебя. Если модуль не включён, `onInit` вообще не вызовется.
+</Callout>

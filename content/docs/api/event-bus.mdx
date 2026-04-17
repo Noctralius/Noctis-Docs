@@ -45,14 +45,18 @@ sealed class AppEvent {
 
 | Событие | Параметры | Назначение |
 |---------|-----------|-----------|
-| `GameLaunched` | — | Игра запустилась |
+| `GameLaunched` | `serverName: String?` | Игра запустилась (emit из LaunchNotifier) |
 | `GameExited` | `exitCode: int` | Игра завершилась с кодом |
-| `SyncStarted` | `profileId: String` | Начало синхронизации файлов |
-| `SyncCompleted` | `profileId: String` | Синхронизация завершена |
+| `SyncStarted` | `profileId: String`, `serverName: String?` | Начало синхронизации файлов |
+| `SyncCompleted` | `profileId: String`, `serverName: String?` | Синхронизация завершена |
 | `AuthStateChanged` | `isLoggedIn: bool` | Статус авторизации изменился |
 | `ErrorOccurred` | `error: AppError` | Произошла ошибка |
 
 Каждое событие содержит `timestamp` — время возникновения.
+
+<Callout type="info" title="GameLaunched только из LaunchNotifier">
+`GameLaunched` теперь эмитится ТОЛЬКО из `LaunchNotifier.launch()`. Раньше `GameProcessManager._setState()` тоже эмитил это событие, создавая дубль. Теперь это событие эмитится один раз, когда процесс игры действительно стартовал.
+</Callout>
 
 ### Пример: добавление нового события
 
@@ -180,13 +184,17 @@ class ConsoleWidget extends ConsumerWidget {
 - Тестирование — просто подменить mock-провайдер
 - Нет скрытых зависимостей
 
-## Пример: SyncStarted и SyncCompleted
+## Пример: SyncStarted и SyncCompleted с serverName
 
 Адаптер не эмитит события — это делает `LaunchNotifier`:
 
 ```dart
 final syncStartTime = DateTime.now();
-sink.emit(SyncStarted(syncStartTime, profileId: profile.id));
+sink.emit(SyncStarted(
+  syncStartTime,
+  profileId: profile.id,
+  serverName: server.name,  // Сервер, на котором запускаемся
+));
 
 final syncStream = adapter.syncAssets(profile, enabledMods: enabledMods);
 
@@ -194,7 +202,20 @@ await for (final progress in syncStream) {
   state = AsyncData(LaunchDownloading(progress, syncStartTime: syncStartTime));
 }
 
-sink.emit(SyncCompleted(DateTime.now(), profileId: profile.id));
+sink.emit(SyncCompleted(
+  DateTime.now(),
+  profileId: profile.id,
+  serverName: server.name,
+));
 ```
 
-UI, слушающий события, может показать тост "Синхронизация завершена" или обновить индикатор статуса.
+Затем, когда игра запустилась:
+
+```dart
+final launchArgs = profile.buildLaunchArgs(token);
+final process = await Process.start(...);
+sink.emit(GameLaunched(DateTime.now(), serverName: server.name));
+state = const AsyncData(LaunchRunning());
+```
+
+UI, слушающий события, может показать тост "Синхронизация завершена" или обновить индикатор статуса. Discord RPC модуль использует `serverName` для отображения статуса на сервере в присутствии.

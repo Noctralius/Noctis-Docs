@@ -1,0 +1,304 @@
+---
+title: Discord RPC
+description: Встроенный модуль для отображения статуса в Discord
+---
+
+# Discord RPC
+
+Discord RPC модуль отображает статус Noctis в Discord присутствии (Rich Presence). Показывает текущий статус, имя сервера и ник игрока.
+
+## Что показывается
+
+### Состояния
+
+| Статус | Details | State |
+|--------|---------|-------|
+| **В лаунчере** | `rpcStateInLauncher` | — |
+| **Скачивает** | `rpcStateDownloading` | — |
+| **На сервере** | `rpcStateOnServer({server})` | `rpcPlayerAs({nick})` или скрыто |
+
+`rpcStateOnServer` подставляет имя сервера из события, `rpcPlayerAs` — ник авторизованного игрока.
+
+### Примеры
+
+```
+Details: "В лаунчере"
+State: (скрыто)
+Image: Noctis logo
+
+---
+
+Details: "Скачивает сборку"
+State: (скрыто)
+Image: Noctis logo
+
+---
+
+Details: "На сервере SurvivalCraft"
+State: "Играет как AlexandrX"
+Image: Noctis logo
+```
+
+## Включение
+
+### 1. Discord Developer Portal
+
+Создай приложение на [discord.com/developers/applications](https://discord.com/developers/applications):
+
+1. New Application → выбери имя (например "Noctis Launcher")
+2. В разделе **OAuth2 → General**, скопируй **CLIENT ID**
+3. В разделе **Rich Presence → Art Assets**, загрузи изображение (например, лого Noctis)
+   - Установи имя: `noctis_logo`
+
+### 2. Конфиг приложения
+
+**assets/config/app_config.example.json:**
+
+```json
+{
+  "modules": {
+    "discord_rpc": {
+      "enabled": false,
+      "clientId": "YOUR_DISCORD_APP_CLIENT_ID"
+    }
+  }
+}
+```
+
+**assets/config/app_config.json** (на твоей машине):
+
+```json
+{
+  "modules": {
+    "discord_rpc": {
+      "enabled": true,
+      "clientId": "1234567890123456789"
+    }
+  }
+}
+```
+
+### 3. Запусти приложение
+
+При запуске модуль:
+1. Проверит что `clientId` не пуст и не `YOUR_DISCORD_APP_CLIENT_ID`
+2. Инициализирует Discord RPC клиент
+3. Подпишется на события (GameLaunched, SyncStarted, и т.д.)
+4. Будет обновлять присутствие при изменении статуса
+
+## Отключение
+
+Просто установи `"enabled": false` или оставь `clientId` пустым:
+
+```json
+{
+  "modules": {
+    "discord_rpc": {
+      "enabled": false
+    }
+  }
+}
+```
+
+Модуль не инициализируется, Discord RPC не активируется.
+
+## Реализация
+
+Модуль находится в `lib/modules/discord_rpc/`:
+
+```
+lib/modules/discord_rpc/
+  discord_rpc_module.dart      # Основной модуль (реализует FeatureModule)
+  discord_rpc_client.dart      # Интерфейс Discord RPC клиента
+  noop_discord_rpc_client.dart # No-op реализация (для разработки)
+```
+
+### Интерфейс Discord RPC
+
+```dart
+abstract class DiscordRpcClient {
+  Future<void> initialize(String clientId);
+  Future<void> setPresence(DiscordPresence presence);
+  Future<void> dispose();
+}
+
+class DiscordPresence {
+  const DiscordPresence({
+    this.state,
+    this.details,
+    this.startTimestamp,
+    this.largeImageKey,
+    this.largeImageText,
+  });
+
+  final String? state;
+  final String? details;
+  final DateTime? startTimestamp;
+  final String? largeImageKey;
+  final String? largeImageText;
+}
+```
+
+### Жизненный цикл
+
+```dart
+class DiscordRpcModule implements FeatureModule {
+  @override
+  Future<void> onInit(FeatureModuleContext context) async {
+    final clientId = context.moduleConfig['clientId'] as String?;
+    
+    // Проверяем что clientId корректный
+    if (clientId == null || clientId.isEmpty || 
+        clientId == 'YOUR_DISCORD_APP_CLIENT_ID') {
+      return;  // Молча выходим, модуль не работает
+    }
+
+    // Инициализируем Discord RPC клиент
+    try {
+      await _client.initialize(clientId);
+    } catch (_) {
+      return;  // Если инициализация упала, не работаем
+    }
+
+    // Загружаем текущую локаль и ник игрока
+    _currentLocale = container.read(localeProvider) ?? _fallbackLocale;
+    await _refreshNickname();
+
+    // Подписываемся на изменения локали и авторизации
+    container.listen(localeProvider, (_, next) {
+      _currentLocale = next ?? _fallbackLocale;
+      unawaited(_applyPresence());
+    });
+
+    // Подписываемся на события (GameLaunched, SyncStarted, и т.д.)
+    context.events.listen(_handleEvent);
+
+    // Отправляем начальное присутствие
+    await _applyPresence();
+  }
+
+  void _handleEvent(AppEvent event) {
+    switch (event) {
+      case GameLaunched(:final serverName):
+        _status = _Status.playing;
+        _currentServer = serverName;
+      
+      case SyncStarted(:final serverName):
+        _status = _Status.syncing;
+        _currentServer = serverName ?? profileId;
+      
+      case SyncCompleted():
+        _status = _Status.idle;
+      
+      case AuthStateChanged():
+        unawaited(_refreshNickname());
+      
+      default:
+        break;
+    }
+    unawaited(_applyPresence());
+  }
+
+  Future<void> _applyPresence() async {
+    final loc = await _ensureLocale(_currentLocale);
+    final projectName = container.read(appConfigProvider).app.projectName;
+
+    final details = switch (_status) {
+      _Status.idle => loc?.rpcStateInLauncher ?? 'In launcher',
+      _Status.syncing => loc?.rpcStateDownloading ?? 'Downloading modpack',
+      _Status.playing => loc?.rpcStateOnServer(_currentServer ?? projectName) 
+          ?? 'On server ${_currentServer ?? projectName}',
+    };
+
+    final state = (_currentNick == null || _currentNick!.isEmpty)
+        ? null
+        : (loc?.rpcPlayerAs(_currentNick!) ?? 'Playing as $_currentNick');
+
+    await _client.setPresence(DiscordPresence(
+      state: state,
+      details: details,
+      startTimestamp: _statusStartedAt,
+      largeImageKey: 'noctis_logo',
+      largeImageText: projectName,
+    ));
+  }
+}
+```
+
+## Локализация
+
+Модуль использует текущую локаль из `localeProvider`. Ключи l10n:
+
+| Ключ | Тип | Использование |
+|------|-----|---------------|
+| `rpcStateInLauncher` | String | Текст когда в лаунчере |
+| `rpcStateDownloading` | String | Текст во время синхронизации |
+| `rpcStateOnServer({server})` | String Function | Текст при игре (с подстановкой имени сервера) |
+| `rpcPlayerAs({nick})` | String Function | Текст с ником игрока |
+
+### ARB файлы
+
+**app_en.arb:**
+```json
+{
+  "rpcStateInLauncher": "In launcher",
+  "rpcStateDownloading": "Downloading modpack",
+  "rpcStateOnServer": "On server {server}",
+  "@rpcStateOnServer": { "placeholders": { "server": { "type": "String" } } },
+  "rpcPlayerAs": "Playing as {nick}",
+  "@rpcPlayerAs": { "placeholders": { "nick": { "type": "String" } } }
+}
+```
+
+**app_ru.arb:**
+```json
+{
+  "rpcStateInLauncher": "В лаунчере",
+  "rpcStateDownloading": "Скачивает сборку",
+  "rpcStateOnServer": "На сервере {server}",
+  "@rpcStateOnServer": { "placeholders": { "server": { "type": "String" } } },
+  "rpcPlayerAs": "Играет как {nick}",
+  "@rpcPlayerAs": { "placeholders": { "nick": { "type": "String" } } }
+}
+```
+
+## Тестирование
+
+### На разработке
+
+Используй `NoopDiscordRpcClient`:
+
+```dart
+DiscordRpcModule(client: const NoopDiscordRpcClient())
+```
+
+Модуль будет работать, но Discord RPC не будет активирован.
+
+### На боевом
+
+Убедись что:
+1. Discord открыт и авторизован
+2. `clientId` корректный
+3. В Discord Developer Portal приложение имеет статус "In Development" или выше
+
+## Debug логирование
+
+В `main.dart`:
+
+```dart
+void main() async {
+  // ...
+  print('Discord RPC module config: ${config.modules['discord_rpc']}');
+  // ...
+}
+```
+
+Если модуль не инициализируется, проверь что `enabled: true` и `clientId` не пуст.
+
+<Callout type="info" title="Fallback локали">
+Если текущая локаль не загружена, модуль использует английский (Locale('en')) как fallback. Если и английский не найден, присутствие отправляется без локализации.
+</Callout>
+
+<Callout type="warn" title="Ошибки инициализации молчат">
+Если Discord RPC инициализируется с ошибкой (например, Discord не установлен), модуль просто не активируется. Исключение логируется в debug, но приложение продолжает работать.
+</Callout>

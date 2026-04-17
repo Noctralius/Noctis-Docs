@@ -117,6 +117,16 @@ class ErrorPresenter {
       return l10n.launchFailed(error.message);
     }
     
+    if (error is SecurityError) {
+      return switch (error.code) {
+        'integrity.fetchFailed' => l10n.integrityFetchFailed,
+        'integrity.signatureInvalid' => l10n.integritySignatureInvalid,
+        'integrity.serverMismatch' => l10n.integrityServerMismatch,
+        'integrity.fileCorrupted' => l10n.integrityFileCorrupted(error.detail ?? 'unknown'),
+        _ => l10n.integrityCheckFailed,
+      };
+    }
+    
     return error.toString();
   }
 }
@@ -130,6 +140,12 @@ throw AuthError(
   code: AuthErrorCode.wrongCredentials,
   message: 'Invalid credentials',  // Для логирования
 );
+
+// В LaunchGameUseCase при failure целостности:
+final integrityResult = await integrityStrategy.verify(profile);
+if (integrityResult is IntegrityFailed) {
+  throw SecurityError(integrityResult.code, detail: integrityResult.detail);
+}
 ```
 
 Presentation слой вызывает ErrorPresenter:
@@ -250,6 +266,35 @@ final saved = await storage.loadLocale();  // 'en' или null
 ```
 
 При перезапуске приложения выбранный язык восстанавливается автоматически.
+
+## Ключи Discord RPC
+
+Если включен Discord RPC модуль, эти ключи используются для обновления статуса в Discord:
+
+| Ключ | Параметры | Пример значения |
+|------|-----------|-----------------|
+| `rpcStateInLauncher` | — | "В лаунчере" / "In launcher" |
+| `rpcStateDownloading` | — | "Скачивает сборку" / "Downloading modpack" |
+| `rpcStateOnServer` | `{server}` | "На сервере {server}" / "On server {server}" |
+| `rpcPlayerAs` | `{nick}` | "Играет как {nick}" / "Playing as {nick}" |
+| `integrityCheckFailed` | — | "Проверка целостности не пройдена" |
+| `integrityFetchFailed` | — | "Ошибка загрузки манифеста" |
+| `integritySignatureInvalid` | — | "Подпись манифеста не совпадает" |
+| `integrityServerMismatch` | — | "Файлы на диске не совпадают с сервером" |
+| `integrityFileCorrupted` | `{file}` | "Файл скорруптирован: {file}" |
+
+Примеры в `.arb`:
+
+```json
+{
+  "rpcStateInLauncher": "In launcher",
+  "rpcStateDownloading": "Downloading modpack",
+  "rpcStateOnServer": "On server {server}",
+  "@rpcStateOnServer": { "placeholders": { "server": { "type": "String" } } },
+  "rpcPlayerAs": "Playing as {nick}",
+  "@rpcPlayerAs": { "placeholders": { "nick": { "type": "String" } } }
+}
+```
 
 ## Расширение с новыми строками
 
